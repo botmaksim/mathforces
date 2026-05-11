@@ -17,7 +17,7 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
     req.setRawHeader("Authorization", QString("Bearer %1").arg(apiKey).toUtf8());
 
     QJsonObject sysMsg; sysMsg["role"] = "system";
-    sysMsg["content"] = "Ты строгий преподаватель математики. Студент может отправлять код и формулы в формате LaTeX или Typst. Внимательно проверяй математические выкладки. Верни СТРОГИЙ JSON: {\"score\": int (0-100), \"feedback\": \"...\", \"thinking\": \"...\"}. " + aiComment;
+    sysMsg["content"] = "Ты строгий преподаватель математики. Студент может отправлять код и формулы в формате LaTeX или Typst. Внимательно проверяй математические выкладки на наличие читерства или использования сторонних решателей. Верни ТОЛЬКО СТРОГИЙ JSON без маркдауна: {\"score\": int (0-100), \"feedback\": \"...\", \"thinking\": \"...\", \"probability\": float (0.0-1.0 вероятности читерства)}. " + aiComment;
 
     QJsonObject userMsg; userMsg["role"] = "user";
     userMsg["content"] = QString("Задача (в т.ч. может содержать LaTeX/Typst): %1\nОтвет и решение: %2").arg(taskDesc, answer);
@@ -30,17 +30,17 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
     payload["response_format"] = format;
 
     QNetworkReply* reply = manager->post(req, QJsonDocument(payload).toJson());
-    qDebug() << "LLM: Request sent to OpenRouter API for submission ID:" << submissionId;
+    qInfo() << "LlmClient::evaluate - Request sent to OpenRouter API for submission ID:" << submissionId;
     connect(reply, &QNetworkReply::finished, [reply, submissionId, callback]() {
         QJsonObject resultJson;
         if (reply->error() == QNetworkReply::NoError) {
-            qDebug() << "LLM: Successful response received for submission ID:" << submissionId;
+            qInfo() << "LlmClient::evaluate - Successful API response received for submission ID:" << submissionId;
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
             QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
-            qDebug() << "LLM: Parsed message content:" << text;
+            qInfo() << "LlmClient::evaluate - Parsed AI message content size:" << text.size() << "bytes";
             resultJson = QJsonDocument::fromJson(text.toUtf8()).object();
         } else {
-            qDebug() << "LLM Error:" << reply->errorString() << "Body:" << reply->readAll();
+            qCritical() << "LlmClient::evaluate - Error for submission ID:" << submissionId << "-" << reply->errorString() << "Body:" << reply->readAll();
             resultJson["score"] = 0; resultJson["feedback"] = "Ошибка проверки ИИ: " + reply->errorString(); resultJson["thinking"] = "";
         }
         callback(submissionId, resultJson);

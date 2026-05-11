@@ -26,7 +26,11 @@ int main(int argc, char *argv[]) {
     }
     
     server.bind(tcpServer);
-    qDebug() << "Mathforces Server listening on port" << port;
+    qInfo() << "==========================================";
+    qInfo() << "Mathforces Server listening on port" << port;
+    qInfo() << "==========================================";
 
-    return app.exec();
+    int ret = app.exec();
+    qInfo() << "Mathforces Server shutting down, exit code:" << ret;
+    return ret;
 }

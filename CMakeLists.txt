@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Поиск Qt6 (Core, Network, Sql, Widgets, HttpServer)
-find_package(Qt6 REQUIRED COMPONENTS Core Network Sql Widgets HttpServer Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Network Sql Widgets HttpServer Concurrent Pdf PdfWidgets)
 
 add_subdirectory(server)
 add_subdirectory(client)

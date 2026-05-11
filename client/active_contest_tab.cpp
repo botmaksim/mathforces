@@ -12,27 +12,89 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QDebug>
+#include <QDialog>
+#include <QPdfDocument>
+#include <QPdfView>
+#include <QTemporaryFile>
 
 ActiveContestTab::ActiveContestTab(const QString& token, QWidget* parent) : QWidget(parent), m_token(token) {
     QHBoxLayout* mainL = new QHBoxLayout(this);
     m_tasks = new QListWidget(this);
     QVBoxLayout* rightL = new QVBoxLayout();
     m_desc = new QLabel("Выберите задачу слева", this); m_desc->setWordWrap(true);
+    
+    QPushButton* btnPdfTask = new QPushButton("Сгенерировать PDF условия (Typst)", this);
+    
     m_answer = new QTextEdit(this);
     
     // Подключаем подсветку синтаксиса для поля ответа (LaTeX, Typst)
     new MathHighlighter(m_answer->document());
 
+    QPushButton* btnPreviewAnswer = new QPushButton("Предпросмотр ответа (PDF / Typst)", this);
     QPushButton* btnFile = new QPushButton("Загрузить файл (.txt, .tex, .typ)", this);
     QPushButton* btnSub = new QPushButton("Отправить решение", this);
-    rightL->addWidget(m_desc); rightL->addWidget(m_answer); rightL->addWidget(btnFile); rightL->addWidget(btnSub);
+    
+    rightL->addWidget(m_desc); 
+    rightL->addWidget(btnPdfTask);
+    rightL->addWidget(m_answer); 
+    rightL->addWidget(btnPreviewAnswer);
+    rightL->addWidget(btnFile); 
+    rightL->addWidget(btnSub);
+    
     mainL->addWidget(m_tasks, 1); mainL->addLayout(rightL, 2);
 
     connect(m_tasks, &QListWidget::itemClicked, [this](QListWidgetItem* item) {
         m_desc->setText(m_taskMap[item->data(Qt::UserRole).toInt()]);
     });
+    connect(btnPdfTask, &QPushButton::clicked, this, [this]() {
+        compileAndShowPdf(m_desc->text());
+    });
+    connect(btnPreviewAnswer, &QPushButton::clicked, this, [this]() {
+        compileAndShowPdf(m_answer->toPlainText());
+    });
     connect(btnFile, &QPushButton::clicked, this, &ActiveContestTab::loadFile);
     connect(btnSub, &QPushButton::clicked, this, &ActiveContestTab::submit);
+}
+
+void ActiveContestTab::compileAndShowPdf(const QString& typstCode) {
+    if (typstCode.isEmpty()) return;
+    
+    QNetworkAccessManager* m = new QNetworkAccessManager(this);
+    QNetworkRequest req(QUrl("http://localhost:8080/api/compile_typst"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setRawHeader("Authorization", m_token.toUtf8());
+    QJsonObject j; j["code"] = typstCode;
+    QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
+    
+    connect(r, &QNetworkReply::finished, [this, r, m]() {
+        if (r->error() == QNetworkReply::NoError) {
+            QByteArray pdfData = r->readAll();
+            
+            QTemporaryFile* tempFile = new QTemporaryFile(this);
+            if (tempFile->open()) {
+                tempFile->write(pdfData);
+                tempFile->flush();
+                
+                QDialog* pdfDialog = new QDialog(this);
+                pdfDialog->setWindowTitle("PDF Предпросмотр");
+                pdfDialog->resize(800, 600);
+                QVBoxLayout* layout = new QVBoxLayout(pdfDialog);
+                
+                QPdfDocument* doc = new QPdfDocument(pdfDialog);
+                doc->load(tempFile->fileName());
+                
+                QPdfView* view = new QPdfView(pdfDialog);
+                view->setDocument(doc);
+                view->setPageMode(QPdfView::PageMode::MultiPage);
+                
+                layout->addWidget(view);
+                pdfDialog->exec();
+            }
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось скомпилировать PDF. Ошибка: " + r->errorString());
+        }
+        r->deleteLater(); m->deleteLater();
+    });
 }
 
 void ActiveContestTab::loadContest(int contestId, const QString&) {

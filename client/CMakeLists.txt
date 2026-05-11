@@ -25,4 +25,6 @@ target_link_libraries(Client PRIVATE
     Qt6::Network 
     Qt6::Widgets 
     Qt6::Concurrent
+    Qt6::Pdf
+    Qt6::PdfWidgets
 )

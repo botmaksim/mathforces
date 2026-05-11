@@ -12,6 +12,7 @@ public:
 private slots:
     void submit();
     void loadFile();
+    void compileAndShowPdf(const QString& typstCode);
 private:
     QString m_token;
     int m_contestId = -1;

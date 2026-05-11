@@ -11,11 +11,15 @@ public:
     QString getRole() const { return m_role; }
 
 private slots:
-    void onLogin();
+    void onEmailLogin();
+    void onEmailRegister();
+    void onGoogleLogin();
 
 private:
-    QLineEdit* m_login;
+    QLineEdit* m_email;
     QLineEdit* m_pass;
+    QLineEdit* m_username;
+    QLineEdit* m_name;
     QString m_token;
     QString m_role;
 };
