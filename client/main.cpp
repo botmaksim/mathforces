@@ -7,7 +7,7 @@
 #include "api_config.h"
 
 namespace ApiConfig {
-    QString baseUrl = ApiConfig::baseUrl + "";
+    QString baseUrl = "http://127.0.0.1:3000";
 }
 
 void loadEnvForClient() {
@@ -32,9 +32,9 @@ void loadEnvForClient() {
             }
             if (key == "CLIENT_BASE_URL") {
                 ApiConfig::baseUrl = val;
-            } else if (key == "SERVER_PORT" && ApiConfig::baseUrl == ApiConfig::baseUrl + "") {
+            } else if (key == "SERVER_PORT" && !ApiConfig::baseUrl.contains(val)) {
                 // Пытаемся адаптировать, если CLIENT_BASE_URL не задан, но изменен SERVER_PORT
-                ApiConfig::baseUrl = "http://localhost:" + val;
+                ApiConfig::baseUrl = "http://127.0.0.1:" + val;
             }
         }
     }

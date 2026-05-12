@@ -1,5 +1,6 @@
 #include "contest_handler.h"
 #include "database.h"
+#include <QUuid>
 #include "auth_middleware.h"
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -234,11 +235,15 @@ void ContestHandler::registerRoutes(QHttpServer& server) {
         qInfo() << "ContestHandler - POST /api/submit - User:" << userId << "Task:" << taskId;
 
         QJsonObject ctx = Database::getContestContextForTask(taskId);
-        if (ctx.isEmpty()) return QHttpServerResponse(QJsonObject{{"error", "Task not found"}}, QHttpServerResponder::StatusCode::BadRequest);
+        if (ctx.isEmpty()) {
+            return QHttpServerResponse(QJsonObject{{"error", "Task not found"}}, QHttpServerResponder::StatusCode::BadRequest);
+        }
         
         QDateTime start = QDateTime::fromString(ctx["start_time"].toString(), Qt::ISODate);
         QDateTime end = QDateTime::fromString(ctx["end_time"].toString(), Qt::ISODate);
         QDateTime now = QDateTime::currentDateTime();
+        
+        qInfo() << "Contest start:" << start << "end:" << end << "now:" << now;
         
         bool isAdmin = (role == "admin" || role == "superadmin");
         
@@ -444,10 +449,21 @@ void ContestHandler::registerRoutes(QHttpServer& server) {
             qWarning() << "ContestHandler - POST /api/admin/contest - Forbidden access attempt";
             return QHttpServerResponse(QHttpServerResponder::StatusCode::Forbidden);
         }
+        int id = Database::createContestInitial(userId);
+        qInfo() << "ContestHandler - POST /api/admin/contest - Create draft result ID:" << id;
+        return QHttpServerResponse(QJsonObject{{"status", "ok"}, {"id", id}});
+    });
+
+    server.route("/api/admin/contest", QHttpServerRequest::Method::Put, [](const QHttpServerRequest& req) {
+        int userId; QString role;
+        qInfo() << "ContestHandler - PUT /api/admin/contest requested";
+        if (!AuthMiddleware::getAuthInfo(req, userId, role) || (role != "admin" && role != "superadmin")) {
+            qWarning() << "ContestHandler - PUT /api/admin/contest - Forbidden access attempt";
+            return QHttpServerResponse(QHttpServerResponder::StatusCode::Forbidden);
+        }
         QJsonObject in = QJsonDocument::fromJson(req.body()).object();
-        bool ok = Database::createContest(userId, in["title"].toString(), in["description"].toString(), in["start"].toString(), (float)in["duration_hours"].toDouble(), in["is_published"].toBool());
-        qInfo() << "ContestHandler - POST /api/admin/contest - Create result:" << ok;
-        return QHttpServerResponse(QJsonObject{{"status", "ok"}});
+        bool ok = Database::updateContest(in["id"].toInt(), userId, in["title"].toString(), in["description"].toString(), in["start"].toString(), (float)in["duration_hours"].toDouble(), in["is_published"].toBool());
+        return QHttpServerResponse(QJsonObject{{"status", ok ? "ok" : "error"}});
     });
 
     server.route("/api/admin/task", QHttpServerRequest::Method::Post, [](const QHttpServerRequest& req) {
@@ -648,39 +664,42 @@ void ContestHandler::registerRoutes(QHttpServer& server) {
             
         QString typstCode = baseTypst + in["code"].toString();
         
-        QTemporaryFile tempIn;
-        if (!tempIn.open()) {
-            qCritical() << "Failed to open temporary input file for Typst";
+        QString id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QString tempInPath = QDir::currentPath() + "/mathforces_" + id + ".typ";
+        QString outPath = QDir::currentPath() + "/mathforces_" + id + ".pdf";
+        
+        QFile tempIn(tempInPath);
+        if (!tempIn.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            qCritical() << "Failed to open temporary input file for Typst:" << tempInPath;
             return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
         }
         tempIn.write(typstCode.toUtf8());
         tempIn.flush();
-        
-        QTemporaryFile tempOut;
-        if (!tempOut.open()) {
-            qCritical() << "Failed to open temporary output file for Typst";
-            return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
-        }
-        QString outPath = tempOut.fileName() + ".pdf";
-        tempOut.close(); 
+        tempIn.close();
         
         QProcess process;
-        process.start("typst", QStringList() << "compile" << tempIn.fileName() << outPath);
+        process.start("npx", QStringList() << "-y" << "typst" << "compile" << tempInPath << outPath);
         process.waitForFinished();
         
-        if (process.exitCode() != 0) {
-            qWarning() << "Typst compilation failed:" << process.readAllStandardError();
-            return QHttpServerResponse(QHttpServerResponder::StatusCode::BadRequest);
+        if (process.exitCode() != 0 || process.exitStatus() != QProcess::NormalExit) {
+            QString errlog = process.readAllStandardError();
+            qWarning() << "Typst compilation failed:" << errlog;
+            QFile::remove(tempInPath);
+            QFile::remove(outPath);
+            return QHttpServerResponse(errlog.toUtf8(), QHttpServerResponder::StatusCode::BadRequest);
         }
         
         QFile outFile(outPath);
         if (!outFile.open(QIODevice::ReadOnly)) {
              qCritical() << "Failed to read typst output file";
+             QFile::remove(tempInPath);
+             QFile::remove(outPath);
              return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
         }
         
         QByteArray pdfData = outFile.readAll();
         outFile.close();
+        QFile::remove(tempInPath);
         QFile::remove(outPath);
         return QHttpServerResponse("application/pdf", pdfData);
     });

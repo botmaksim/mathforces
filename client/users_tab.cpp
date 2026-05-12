@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "users_tab.h"
 #include "profile_dialog.h"
 #include <QVBoxLayout>
@@ -44,7 +45,7 @@ UsersTab::UsersTab(const QString& token, const QString& myRole, QWidget* parent)
 
 void UsersTab::loadUsers() {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/users"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/users"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     
@@ -134,7 +135,7 @@ void UsersTab::applyRoleChange(int row) {
     QString role = cb->currentText();
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/users/role"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/users/role"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["user_id"] = id; j["role"] = role;
@@ -159,7 +160,7 @@ void UsersTab::applyBanChange(int row) {
     bool ban = chk->isChecked();
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/users/ban"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/users/ban"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["user_id"] = id; j["is_banned"] = ban;
@@ -184,7 +185,7 @@ void UsersTab::applyBlogChange(int row) {
     bool canBlog = chk->isChecked();
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/users/blog_access"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/users/blog_access"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["user_id"] = id; j["can_blog"] = canBlog;

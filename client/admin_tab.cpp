@@ -20,9 +20,20 @@
 
 AdminTab::AdminTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
-  QHBoxLayout *ML = new QHBoxLayout(this);
+  QVBoxLayout *mainVert = new QVBoxLayout(this);
+  
+  QHBoxLayout *topL = new QHBoxLayout();
+  topL->addWidget(new QLabel("Текущий 컨тест:"));
+  m_selectContest = new QComboBox();
+  topL->addWidget(m_selectContest);
+  m_btnCreateDraft = new QPushButton("Создать Новый (Черновик)");
+  topL->addWidget(m_btnCreateDraft);
+  mainVert->addLayout(topL);
 
-  QGroupBox *g1 = new QGroupBox("Новый Контест");
+  QHBoxLayout *ML = new QHBoxLayout();
+  mainVert->addLayout(ML);
+
+  QGroupBox *g1 = new QGroupBox("Параметры Контеста");
   QVBoxLayout *l1 = new QVBoxLayout(g1);
   m_cTitle = new QLineEdit();
   m_cTitle->setPlaceholderText("Название");
@@ -42,7 +53,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
 
   m_cIsPublished = new QCheckBox("Опубликовать контест (сразу доступен)");
 
-  QPushButton *b1 = new QPushButton("Создать контест");
+  QPushButton *b1 = new QPushButton("Сохранить изменения");
   l1->addWidget(new QLabel("Название:"));
   l1->addWidget(m_cTitle);
   l1->addWidget(new QLabel("Начало:"));
@@ -54,9 +65,8 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   l1->addWidget(m_cIsPublished);
   l1->addWidget(b1);
 
-  QGroupBox *g2 = new QGroupBox("Новая Задача");
+  QGroupBox *g2 = new QGroupBox("Новая Задача (в текущий контест)");
   QVBoxLayout *l2 = new QVBoxLayout(g2);
-  m_tContestId = new QComboBox();
   m_tTitle = new QLineEdit();
   m_tTitle->setPlaceholderText("Название");
   m_tScore = new QLineEdit();
@@ -92,9 +102,8 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   QPushButton *btnPreviewEditorial =
       new QPushButton("Предпросмотр разбора (Typst)", this);
 
-  QPushButton *b2 = new QPushButton("Создать задачу");
+  QPushButton *b2 = new QPushButton("Добавить задачу");
 
-  l2->addWidget(m_tContestId);
   l2->addWidget(m_tTitle);
   l2->addWidget(m_tScore);
   l2->addWidget(m_tMaxSubmissions);
@@ -144,8 +153,11 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   ML->addWidget(g1);
   ML->addWidget(g2);
   ML->addWidget(g3);
-  connect(b1, &QPushButton::clicked, this, &AdminTab::createContest);
+  
+  connect(m_btnCreateDraft, &QPushButton::clicked, this, &AdminTab::createDraftContest);
+  connect(b1, &QPushButton::clicked, this, &AdminTab::updateContest);
   connect(b2, &QPushButton::clicked, this, &AdminTab::createTask);
+  connect(m_selectContest, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &AdminTab::onContestSelectionChanged);
 
   connect(btnPreviewEditorial, &QPushButton::clicked, [this]() {
     QString typstCode = m_tEditorial->toPlainText();
@@ -176,9 +188,10 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
           d->exec();
         }
       } else {
+        QString errText = r->readAll();
         QMessageBox::warning(this, "Ошибка",
                              "Не удалось скомпилировать PDF. Ошибка: " +
-                                 r->errorString());
+                                 r->errorString() + "\n" + errText);
       }
       r->deleteLater();
       m->deleteLater();
@@ -193,20 +206,78 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
 
 void AdminTab::loadMyContests() {
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/admin/my_contests"));
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/my_contests"));
   req.setRawHeader("Authorization", m_token.toUtf8());
   QNetworkReply *r = m->get(req);
   connect(r, &QNetworkReply::finished, [this, r, m]() {
     if (r->error() == QNetworkReply::NoError) {
-      m_tContestId->clear();
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      for (auto v : arr) {
+      m_selectContest->clear();
+      m_currentContestsArray = QJsonDocument::fromJson(r->readAll()).array();
+      for (auto v : m_currentContestsArray) {
         QJsonObject o = v.toObject();
-        m_tContestId->addItem(QString("%1 (ID: %2)")
+        m_selectContest->addItem(QString("%1 (ID: %2)")
                                   .arg(o["title"].toString())
                                   .arg(o["id"].toInt()),
                               o["id"].toInt());
       }
+    }
+    r->deleteLater();
+    m->deleteLater();
+  });
+}
+
+void AdminTab::onContestSelectionChanged(int index) {
+    if (index < 0 || index >= m_currentContestsArray.size()) return;
+    QJsonObject o = m_currentContestsArray[index].toObject();
+    m_cTitle->setText(o["title"].toString());
+    m_cDesc->setPlainText(o["description"].toString());
+    m_cStart->setDateTime(QDateTime::fromString(o["start_time"].toString(), Qt::ISODate));
+    m_cDuration->setValue(o["duration_hours"].toDouble());
+    m_cIsPublished->setChecked(o["is_published"].toBool());
+}
+
+void AdminTab::createDraftContest() {
+  QNetworkAccessManager *m = new QNetworkAccessManager(this);
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
+  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+  req.setRawHeader("Authorization", m_token.toUtf8());
+  QJsonObject j; // Empty request for draft create
+  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
+  connect(r, &QNetworkReply::finished, [this, r, m]() {
+    if (r->error() == QNetworkReply::NoError) {
+      QMessageBox::information(this, "Ок", "Черновик контеста создан");
+      loadMyContests();
+    } else {
+      QMessageBox::warning(this, "Ошибка", "Не удалось создать контест");
+    }
+    r->deleteLater();
+    m->deleteLater();
+  });
+}
+
+void AdminTab::updateContest() {
+  int cIdx = m_selectContest->currentIndex();
+  if (cIdx < 0) return;
+  int cId = m_selectContest->itemData(cIdx).toInt();
+  
+  QNetworkAccessManager *m = new QNetworkAccessManager(this);
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
+  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+  req.setRawHeader("Authorization", m_token.toUtf8());
+  QJsonObject j;
+  j["id"] = cId;
+  j["title"] = m_cTitle->text();
+  j["start"] = m_cStart->dateTime().toString("yyyy-MM-dd HH:mm:ss");
+  j["duration_hours"] = m_cDuration->value();
+  j["description"] = m_cDesc->toPlainText();
+  j["is_published"] = m_cIsPublished->isChecked();
+  QNetworkReply *r = m->put(req, QJsonDocument(j).toJson());
+  connect(r, &QNetworkReply::finished, [this, r, m]() {
+    if (r->error() == QNetworkReply::NoError) {
+      QMessageBox::information(this, "Ок", "Параметры сохранены");
+      loadMyContests();
+    } else {
+      QMessageBox::warning(this, "Ошибка", "Ошибка сохранения");
     }
     r->deleteLater();
     m->deleteLater();
@@ -260,44 +331,20 @@ void AdminTab::onTaskTypeChanged(int index) {
   }
 }
 
-void AdminTab::createContest() {
-  qDebug() << "Client: Creating contest:" << m_cTitle->text();
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["title"] = m_cTitle->text();
-  j["start"] = m_cStart->dateTime().toString(Qt::ISODate);
-  j["duration_hours"] = m_cDuration->value();
-  j["description"] = m_cDesc->toPlainText();
-  j["is_published"] = m_cIsPublished->isChecked();
-
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Contest created successfully";
-      QMessageBox::information(this, "Ок", "Контест создан!");
-      loadMyContests();
-    } else {
-      qDebug() << "Client Error: Failed to create contest:" << r->errorString()
-               << "-" << r->readAll();
-      QMessageBox::warning(this, "Ошибка", "Ошибка: " + r->errorString());
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
-}
 void AdminTab::createTask() {
+  int cIdx = m_selectContest->currentIndex();
+  if (cIdx < 0) return;
+  int cId = m_selectContest->itemData(cIdx).toInt();
+  
   qDebug() << "Client: Creating task:" << m_tTitle->text()
-           << "for contest ID:" << m_tContestId->currentData().toInt();
+           << "for contest ID:" << cId;
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
   QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/task"));
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
   req.setRawHeader("Authorization", m_token.toUtf8());
 
   QJsonObject j;
-  j["contest_id"] = m_tContestId->currentData().toInt();
+  j["contest_id"] = cId;
   j["title"] = m_tTitle->text();
   j["max_score"] = m_tScore->text().toInt();
   j["max_submissions"] = m_tMaxSubmissions->text().toInt();

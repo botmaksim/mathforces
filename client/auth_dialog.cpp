@@ -154,7 +154,7 @@ void AuthDialog::onGoogleLogin() {
     QUrl url("https://accounts.google.com/o/oauth2/v2/auth");
     QUrlQuery query;
     query.addQueryItem("client_id", clientId);
-    query.addQueryItem("redirect_uri", "http://127.0.0.1:8080/api/oauth_callback_client");
+    query.addQueryItem("redirect_uri", ApiConfig::baseUrl + "/api/oauth_callback_client");
     query.addQueryItem("response_type", "token");
     query.addQueryItem("scope", "email profile");
     url.setQuery(query);

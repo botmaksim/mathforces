@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "profile_dialog.h"
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -56,7 +57,7 @@ ProfileDialog::ProfileDialog(const QString& token, int targetUserId, const QStri
 
 void ProfileDialog::fetchMyId() {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/users/profile")); // my profile
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/users/profile")); // my profile
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
@@ -72,7 +73,7 @@ void ProfileDialog::fetchMyId() {
 void ProfileDialog::loadProfile() {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
     // target profile
-    QNetworkRequest req(QUrl(QString("http://127.0.0.1:8080/api/users/profile?id=%1").arg(m_targetUserId)));
+    QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/users/profile?id=%1").arg(m_targetUserId)));
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
@@ -115,7 +116,7 @@ void ProfileDialog::loadBlogPosts() {
     }
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(QString("http://127.0.0.1:8080/api/blog/posts?user_id=%1").arg(m_targetUserId)));
+    QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/blog/posts?user_id=%1").arg(m_targetUserId)));
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
@@ -148,7 +149,7 @@ void ProfileDialog::addBlogPost() {
     QString c = m_txtNewPost->toPlainText();
     if (c.isEmpty()) return;
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/blog/posts"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/blog/posts"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["content"] = c;
@@ -189,7 +190,7 @@ void ProfileDialog::showComments(int postId) {
             delete item;
         }
         QNetworkAccessManager* m = new QNetworkAccessManager(&d);
-        QNetworkRequest req(QUrl(QString("http://127.0.0.1:8080/api/blog/comments?post_id=%1").arg(postId)));
+        QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/blog/comments?post_id=%1").arg(postId)));
         req.setRawHeader("Authorization", m_token.toUtf8());
         QNetworkReply* r = m->get(req);
         QObject::connect(r, &QNetworkReply::finished, [&, r, m]() {
@@ -211,7 +212,7 @@ void ProfileDialog::showComments(int postId) {
         QString txt = te->toPlainText();
         if (txt.isEmpty()) return;
         QNetworkAccessManager* m = new QNetworkAccessManager(&d);
-        QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/blog/comments"));
+        QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/blog/comments"));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         req.setRawHeader("Authorization", m_token.toUtf8());
         QJsonObject j; j["post_id"] = postId; j["content"] = txt;

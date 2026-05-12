@@ -41,7 +41,8 @@ public:
     static void updateHackStatus(int hackId, bool isSuccessful, const QString& explanation);
     static QJsonObject getHackContext(int hackId);
 
-    static bool createContest(int authorId, const QString& title, const QString& description, const QString& start, float durationHours, bool isPublished);
+    static int createContestInitial(int authorId);
+    static bool updateContest(int contestId, int authorId, const QString& title, const QString& description, const QString& start, float durationHours, bool isPublished);
     static bool createTask(int contestId, const QString& type, const QString& title, const QString& description, int maxScore, int maxSubmissions, const QString& correctAnswer, const QString& editorial, const QString& aiComment, bool sendEditorial, const QString& tags, int difficulty);
     
     // User management

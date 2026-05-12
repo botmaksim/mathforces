@@ -17,14 +17,16 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
     req.setRawHeader("Authorization", QString("Bearer %1").arg(apiKey).toUtf8());
 
     QJsonObject sysMsg; sysMsg["role"] = "system";
-    sysMsg["content"] = "Ты строгий преподаватель математики. Студент может отправлять код и формулы в формате LaTeX или Typst. Внимательно проверяй математические выкладки на наличие читерства или использования сторонних решателей. Верни ТОЛЬКО СТРОГИЙ JSON без маркдауна: {\"score\": int (0-100), \"feedback\": \"...\", \"thinking\": \"...\", \"probability\": float (0.0-1.0 вероятности читерства)}. " + aiComment;
+    sysMsg["content"] = "Ты беспристрастный и точный автогрейдер по математике. Участник прислал решение. Твоя задача — оценить его правильность (ответ и логику решения). Если предоставлено авторское решение - сверяйся с ним. "
+                        "Оцени решение от 0 до 100 баллов. Верни СТРОГИЙ JSON формат ответа, без маркдауна и оберток: {\"score\": 100, \"feedback\": \"Отличная работа (или описание ошибки)...\", \"thinking\": \"твои рассуждения\", \"probability\": 0.0}. " + aiComment;
 
     QJsonObject userMsg; userMsg["role"] = "user";
-    userMsg["content"] = QString("Задача (в т.ч. может содержать LaTeX/Typst): %1\nОтвет и решение: %2").arg(taskDesc, answer);
+    userMsg["content"] = QString("Условие задачи и возможно авторское решение: %1\n\nРешение участника: %2").arg(taskDesc, answer);
 
     QJsonObject payload;
-    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openrouter/openai/gpt-4o-mini");
+    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openai/gpt-4o-mini");
     payload["messages"] = QJsonArray{sysMsg, userMsg};
+    payload["temperature"] = 0.0;
     
     QJsonObject format; format["type"] = "json_object";
     payload["response_format"] = format;
@@ -36,7 +38,11 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
         if (reply->error() == QNetworkReply::NoError) {
             qInfo() << "LlmClient::evaluate - Successful API response received for submission ID:" << submissionId;
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-            QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
+            QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString().trimmed();
+            if (text.startsWith("```json")) text = text.mid(7);
+            else if (text.startsWith("```")) text = text.mid(3);
+            if (text.endsWith("```")) text = text.chopped(3);
+            
             qInfo() << "LlmClient::evaluate - Parsed AI message content size:" << text.size() << "bytes";
             resultJson = QJsonDocument::fromJson(text.toUtf8()).object();
         } else {
@@ -55,14 +61,16 @@ void LlmClient::evaluateHack(int hackId, const QString& editorial, const QString
     req.setRawHeader("Authorization", QString("Bearer %1").arg(apiKey).toUtf8());
 
     QJsonObject sysMsg; sysMsg["role"] = "system";
-    sysMsg["content"] = "Ты судья соревнований по математике. Твоя задача — проверить ВЗЛОМ (hack). У тебя есть авторское решение задачи, решение участника и аргумент хакера. Тебе нужно сказать, прав ли хакер. Верни только JSON без маркдауна: {\"is_successful\": boolean, \"explanation\": \"почему\"}.";
+    sysMsg["content"] = "Ты судья соревнований по математике. Твоя задача — проверить ВЗЛОМ (hack). У тебя есть авторское решение задачи, решение участника (которое нужно взломать) и аргумент/контрпример хакера. Тебе нужно сказать, прав ли хакер. "
+                        "Верни только СТРОГИЙ JSON без маркдауна и оберток: {\"is_successful\": true/false, \"explanation\": \"почему хакер прав или не прав\"}.";
 
     QJsonObject userMsg; userMsg["role"] = "user";
     userMsg["content"] = QString("Авторское решение: %1\n\nРешение участника: %2\n\nПретензия хакера: %3").arg(editorial, answer, hackText);
 
     QJsonObject payload;
-    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openrouter/openai/gpt-4o-mini");
+    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openai/gpt-4o-mini");
     payload["messages"] = QJsonArray{sysMsg, userMsg};
+    payload["temperature"] = 0.0;
     
     QJsonObject format; format["type"] = "json_object";
     payload["response_format"] = format;
@@ -73,7 +81,10 @@ void LlmClient::evaluateHack(int hackId, const QString& editorial, const QString
         QString explanation = "Ошибка API";
         if (reply->error() == QNetworkReply::NoError) {
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-            QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
+            QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString().trimmed();
+            if (text.startsWith("```json")) text = text.mid(7);
+            else if (text.startsWith("```")) text = text.mid(3);
+            if (text.endsWith("```")) text = text.chopped(3);
             QJsonObject res = QJsonDocument::fromJson(text.toUtf8()).object();
             isSuccessful = res["is_successful"].toBool();
             explanation = res["explanation"].toString();

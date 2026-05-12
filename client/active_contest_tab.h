@@ -12,17 +12,17 @@
 class ActiveContestTab : public QWidget {
     Q_OBJECT
 public:
-    ActiveContestTab(const QString& token, QWidget* parent = nullptr);
+    ActiveContestTab(const QString& token, const QString& role, QWidget* parent = nullptr);
     void loadContest(int contestId, const QString& title);
 private slots:
     void submit();
-    void loadFile();
     void compileAndShowPdf(const QString& typstCode);
     void compileRealtime(const QString& typstCode);
     void loadSubmissions(int taskId);
     void showAllSubmissions();
 private:
     QString m_token;
+    QString m_role;
     int m_contestId = -1;
     QListWidget* m_tasks;
     QTextEdit* m_answer;

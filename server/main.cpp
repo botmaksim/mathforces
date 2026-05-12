@@ -7,10 +7,13 @@
 #include "database.h"
 #include "contest_handler.h"
 
-void loadEnv(const QString& filePath) {
-    QFile file(filePath);
+void loadEnv(const QString& filename) {
+    QFile file(filename);
+    if (!file.exists()) file.setFileName("../" + filename);
+    if (!file.exists()) file.setFileName("../../" + filename);
+    
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "Could not open" << filePath;
+        qWarning() << "Could not open config.env from the current or parent directories.";
         return; 
     }
     QTextStream in(&file);

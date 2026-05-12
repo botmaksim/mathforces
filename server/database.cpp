@@ -234,13 +234,20 @@ bool Database::isVirtualParticipating(int contestId, int userId, QDateTime& virt
 QJsonObject Database::getContestContextForTask(int taskId) {
     QSqlDatabase db = QSqlDatabase::database(getThreadLocalConnection());
     QSqlQuery q(db);
-    q.prepare("SELECT c.id, c.start_time, c.end_time FROM tasks t JOIN contests c ON t.contest_id = c.id WHERE t.id = :t");
+    q.prepare("SELECT c.id, c.start_time, c.end_time, c.duration_hours FROM tasks t JOIN contests c ON t.contest_id = c.id WHERE t.id = :t");
     q.bindValue(":t", taskId);
     QJsonObject res;
-    if (q.exec() && q.next()) {
-        res["contest_id"] = q.value(0).toInt();
-        res["start_time"] = q.value(1).toDateTime().toString(Qt::ISODate);
-        res["end_time"] = q.value(2).toDateTime().toString(Qt::ISODate);
+    if (q.exec()) {
+        if (q.next()) {
+            res["contest_id"] = q.value(0).toInt();
+            res["start_time"] = q.value(1).toDateTime().toString(Qt::ISODate);
+            res["end_time"] = q.value(2).toDateTime().toString(Qt::ISODate);
+            res["duration_hours"] = q.value(3).toDouble();
+        } else {
+            qCritical() << "Database::getContestContextForTask: q.next() is false for task ID:" << taskId;
+        }
+    } else {
+        qCritical() << "Database::getContestContextForTask: q.exec() failed with error:" << q.lastError().text();
     }
     return res;
 }
@@ -488,18 +495,33 @@ int Database::getUserSubmissionsCount(int taskId, int userId) {
     return 0;
 }
 
-bool Database::createContest(int authorId, const QString& title, const QString& description, const QString& start, float durationHours, bool isPublished) {
-    qInfo() << "Database::createContest - Action by user:" << authorId << "title:" << title;
+int Database::createContestInitial(int authorId) {
+    qInfo() << "Database::createContestInitial - Action by user:" << authorId;
     QSqlDatabase db = QSqlDatabase::database(getThreadLocalConnection());
     QSqlQuery q(db); 
     
-    q.prepare("INSERT INTO contests (author_id, title, description, start_time, duration_hours, end_time, is_published) VALUES (:a, :t, :d, :s, :dur, :s::timestamp + interval '1 hour' * CAST(:dur AS float), :p)");
-    q.bindValue(":a", authorId); q.bindValue(":t", title); q.bindValue(":d", description); 
+    q.prepare("INSERT INTO contests (author_id, title, description, start_time, duration_hours, end_time, is_published) VALUES (:a, 'Новый контест', '', NOW(), 2.0, NOW() + INTERVAL '2 hours', false) RETURNING id");
+    q.bindValue(":a", authorId);
+    
+    if (!q.exec() || !q.next()) {
+        qCritical() << "Database::createContestInitial - SQL Error:" << q.lastError().text();
+        return 0;
+    }
+    return q.value(0).toInt();
+}
+
+bool Database::updateContest(int contestId, int authorId, const QString& title, const QString& description, const QString& start, float durationHours, bool isPublished) {
+    qInfo() << "Database::updateContest - Action by user:" << authorId << "contest:" << contestId;
+    QSqlDatabase db = QSqlDatabase::database(getThreadLocalConnection());
+    QSqlQuery q(db); 
+    
+    q.prepare("UPDATE contests SET title = :t, description = :d, start_time = :s, duration_hours = :dur, end_time = :s::timestamp + interval '1 hour' * CAST(:dur AS float), is_published = :p WHERE id = :id AND author_id = :a");
+    q.bindValue(":id", contestId); q.bindValue(":a", authorId);
+    q.bindValue(":t", title); q.bindValue(":d", description); 
     q.bindValue(":s", start); q.bindValue(":dur", durationHours); q.bindValue(":p", isPublished);
     
     bool ok = q.exec();
-    if (!ok) qCritical() << "Database::createContest - SQL Error:" << q.lastError().text();
-    else qInfo() << "Database::createContest - Success";
+    if (!ok) qCritical() << "Database::updateContest - SQL Error:" << q.lastError().text();
     return ok;
 }
 

@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "friends_tab.h"
 #include "profile_dialog.h"
 #include <QVBoxLayout>
@@ -58,7 +59,7 @@ void FriendsTab::searchUsers() {
     QString q = m_searchEdit->text();
     if (q.isEmpty()) return;
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(QString("http://127.0.0.1:8080/api/users/search?q=%1").arg(q)));
+    QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/users/search?q=%1").arg(q)));
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
@@ -78,7 +79,7 @@ void FriendsTab::searchUsers() {
 
 void FriendsTab::loadFriends() {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/friends/list"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/list"));
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
@@ -107,7 +108,7 @@ void FriendsTab::addFriend() {
     if (!item) return;
     int id = item->data(Qt::UserRole).toInt();
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/friends/add"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/add"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["friend_id"] = id;
@@ -125,7 +126,7 @@ void FriendsTab::removeFriend() {
     if (!item) return;
     int id = item->data(Qt::UserRole).toInt();
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://127.0.0.1:8080/api/friends/remove"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/remove"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["friend_id"] = id;

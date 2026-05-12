@@ -19,7 +19,8 @@ CREATE TABLE users (
     is_banned BOOLEAN DEFAULT FALSE,
     rating INTEGER DEFAULT 500,
     reputation INTEGER DEFAULT 0,
-    hidden_probability FLOAT DEFAULT 0.0
+    hidden_probability FLOAT DEFAULT 0.0,
+    can_blog BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE contests (
