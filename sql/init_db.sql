@@ -112,3 +112,5 @@ INSERT INTO users (username, email, password_hash, role, name) VALUES ('student'
 -- Выдаем права пользователю mathforces
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO mathforces;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO mathforces;
+
+ALTER TABLE contests ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;
