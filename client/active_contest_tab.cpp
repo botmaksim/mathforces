@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "active_contest_tab.h"
 #include "math_highlighter.h"
 #include <QHBoxLayout>
@@ -122,7 +123,7 @@ void ActiveContestTab::compileRealtime(const QString& typstCode) {
     }
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/compile_typst"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["code"] = typstCode;
@@ -151,7 +152,7 @@ void ActiveContestTab::compileAndShowPdf(const QString& typstCode) {
     if (typstCode.isEmpty()) return;
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/compile_typst"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["code"] = typstCode;
@@ -192,7 +193,7 @@ void ActiveContestTab::loadContest(int contestId, const QString&) {
     qDebug() << "Client: Loading contest tasks for ID:" << contestId;
     m_contestId = contestId; m_tasks->clear(); m_taskMap.clear(); m_answer->clear();
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkReply* r = m->get(QNetworkRequest(QUrl(QString("http://localhost:8080/api/tasks?contest_id=%1").arg(contestId))));
+    QNetworkReply* r = m->get(QNetworkRequest(QUrl(QString(ApiConfig::baseUrl + "/api/tasks?contest_id=%1").arg(contestId))));
     connect(r, &QNetworkReply::finished, [this, r, m]() {
         if (r->error() == QNetworkReply::NoError) {
             qDebug() << "Client: Fetched tasks successfully";
@@ -228,7 +229,7 @@ void ActiveContestTab::submit() {
     int tId = m_tasks->currentItem()->data(Qt::UserRole).toInt();
     qDebug() << "Client: Submitting answer for task ID:" << tId;
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/submit"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/submit"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["task_id"] = tId; j["answer"] = m_answer->toPlainText();
@@ -262,7 +263,7 @@ void ActiveContestTab::showAllSubmissions() {
     l->addWidget(table);
     
     QNetworkAccessManager* m = new QNetworkAccessManager(&dlg);
-    QNetworkRequest req(QUrl(QString("http://localhost:8080/api/submissions/all?task_id=%1").arg(tId)));
+    QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/submissions/all?task_id=%1").arg(tId)));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
@@ -300,7 +301,7 @@ void ActiveContestTab::showAllSubmissions() {
         
         connect(sendBtn, &QPushButton::clicked, [this, &hackDlg, subId, hackText]() {
             QNetworkAccessManager* hm = new QNetworkAccessManager(&hackDlg);
-            QNetworkRequest hreq(QUrl("http://localhost:8080/api/hacks"));
+            QNetworkRequest hreq(QUrl(ApiConfig::baseUrl + "/api/hacks"));
             hreq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
             hreq.setRawHeader("Authorization", m_token.toUtf8());
             QJsonObject hj; hj["submission_id"] = subId; hj["hack_text"] = hackText->toPlainText();
@@ -323,7 +324,7 @@ void ActiveContestTab::showAllSubmissions() {
 
 void ActiveContestTab::loadSubmissions(int taskId) {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(QString("http://localhost:8080/api/submissions?task_id=%1").arg(taskId)));
+    QNetworkRequest req(QUrl(QString(ApiConfig::baseUrl + "/api/submissions?task_id=%1").arg(taskId)));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);

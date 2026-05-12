@@ -35,6 +35,43 @@ bool Database::init(const QString& dbName, const QString& user, const QString& p
     return false;
 }
 
+void Database::createInitialUsers() {
+    QSqlDatabase db = QSqlDatabase::database(getThreadLocalConnection());
+    QSqlQuery q(db);
+    
+    auto createIfMissing = [&](const QString& username, const QString& email, const QString& row_pass, const QString& role, const QString& name) {
+        QSqlQuery check(db);
+        check.prepare("SELECT id FROM users WHERE username = :u");
+        check.bindValue(":u", username);
+        if (check.exec() && check.next()) {
+            // Already exists
+            return;
+        }
+        
+        QSqlQuery insert(db);
+        insert.prepare("INSERT INTO users (username, email, password_hash, role, name) VALUES (:u, :e, :p, :r, :n)");
+        QString hashedPwd = QString(QCryptographicHash::hash(row_pass.toUtf8(), QCryptographicHash::Sha256).toHex());
+        insert.bindValue(":u", username);
+        insert.bindValue(":e", email);
+        insert.bindValue(":p", hashedPwd);
+        insert.bindValue(":r", role);
+        insert.bindValue(":n", name);
+        if (!insert.exec()) {
+            qCritical() << "Failed to create initial user" << username << ":" << insert.lastError().text();
+        } else {
+            qInfo() << "Successfully created initial user" << username;
+        }
+    };
+    
+    // В случае если в БД есть "сломанные" тестовые пользователи из init_db.sql (у которых хэш '12345'),
+    // мы их удалим, чтобы создать новые с правильным хэшем (суперадмин, админ, студент).
+    q.exec("DELETE FROM users WHERE password_hash = '12345'");
+    
+    createIfMissing("superadmin", "superadmin@example.com", "12345", "superadmin", "Super Admin");
+    createIfMissing("admin", "admin@example.com", "12345", "admin", "Admin");
+    createIfMissing("student", "student@example.com", "12345", "student", "Student");
+}
+
 QString Database::getThreadLocalConnection() {
     QString connName = QString("db_%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()));
     if (!QSqlDatabase::contains(connName)) {

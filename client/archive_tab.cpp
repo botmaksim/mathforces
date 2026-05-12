@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "archive_tab.h"
 #include <QHeaderView>
 
@@ -41,7 +42,7 @@ void ArchiveTab::loadTasks() { applyFilter(); }
 
 void ArchiveTab::applyFilter() {
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QString urlStr = "http://localhost:8080/api/archive/tasks?";
+  QString urlStr = ApiConfig::baseUrl + "/api/archive/tasks?";
 
   if (!m_filterTags->text().isEmpty()) {
     urlStr += "tags=" + m_filterTags->text() + "&";

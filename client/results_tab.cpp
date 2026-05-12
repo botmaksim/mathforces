@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "results_tab.h"
 #include "profile_dialog.h"
 #include <QVBoxLayout>
@@ -54,7 +55,7 @@ void ResultsTab::loadResults(int contestId) {
     qDebug() << "Client: Loading results for contest ID:" << contestId;
     m_currentContest = contestId;
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkReply* r = m->get(QNetworkRequest(QUrl(QString("http://localhost:8080/api/results?contest_id=%1").arg(contestId))));
+    QNetworkReply* r = m->get(QNetworkRequest(QUrl(QString(ApiConfig::baseUrl + "/api/results?contest_id=%1").arg(contestId))));
     connect(r, &QNetworkReply::finished, [this, r, m]() {
         if (r->error() == QNetworkReply::NoError) {
             qDebug() << "Client: Results loaded successfully";
@@ -80,7 +81,7 @@ void ResultsTab::loadResults(int contestId) {
 void ResultsTab::rateContest() {
     if (m_currentContest == -1) return;
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/admin/rate_contest"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/rate_contest"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Authorization", m_token.toUtf8());
     QJsonObject j; j["contest_id"] = m_currentContest;

@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "main_window.h"
 #include "contests_tab.h"
 #include "active_contest_tab.h"
@@ -47,7 +48,7 @@ MainWindow::MainWindow(const QString& token, const QString& role, QWidget *paren
     connect(m_contestsTab, &ContestsTab::startVirtualParticipation, this, [this](int cid) {
         // Here we could call API to register virtual participation
         QNetworkAccessManager* m = new QNetworkAccessManager(this);
-        QNetworkRequest req(QUrl("http://localhost:8080/api/contests/virtual"));
+        QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/contests/virtual"));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         req.setRawHeader("Authorization", m_token.toUtf8());
         QJsonObject j; j["contest_id"] = cid;

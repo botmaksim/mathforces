@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "contests_tab.h"
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -36,7 +37,7 @@ ContestsTab::ContestsTab(const QString& token, QWidget* parent) : QWidget(parent
 void ContestsTab::load() {
     qDebug() << "Client: Loading contests";
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/contests"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/contests"));
     if (!m_token.isEmpty())
         req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);

@@ -23,7 +23,7 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
     userMsg["content"] = QString("Задача (в т.ч. может содержать LaTeX/Typst): %1\nОтвет и решение: %2").arg(taskDesc, answer);
 
     QJsonObject payload;
-    payload["model"] = "openrouter/openai/gpt-4o-mini";
+    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openrouter/openai/gpt-4o-mini");
     payload["messages"] = QJsonArray{sysMsg, userMsg};
     
     QJsonObject format; format["type"] = "json_object";
@@ -61,7 +61,7 @@ void LlmClient::evaluateHack(int hackId, const QString& editorial, const QString
     userMsg["content"] = QString("Авторское решение: %1\n\nРешение участника: %2\n\nПретензия хакера: %3").arg(editorial, answer, hackText);
 
     QJsonObject payload;
-    payload["model"] = "openrouter/openai/gpt-4o-mini";
+    payload["model"] = qEnvironmentVariable("OPENROUTER_MODEL", "openrouter/openai/gpt-4o-mini");
     payload["messages"] = QJsonArray{sysMsg, userMsg};
     
     QJsonObject format; format["type"] = "json_object";

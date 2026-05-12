@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "admin_tab.h"
 #include "math_highlighter.h"
 #include <QCheckBox>
@@ -151,7 +152,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
     if (typstCode.isEmpty())
       return;
     QNetworkAccessManager *m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/compile_typst"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QJsonObject j;
     j["code"] = typstCode;
@@ -219,7 +220,7 @@ void AdminTab::compileRealtime(const QString &typstCode) {
   }
 
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl("http://localhost:8080/api/compile_typst"));
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
   req.setRawHeader("Authorization", m_token.toUtf8());
   QJsonObject j;
@@ -262,7 +263,7 @@ void AdminTab::onTaskTypeChanged(int index) {
 void AdminTab::createContest() {
   qDebug() << "Client: Creating contest:" << m_cTitle->text();
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl("http://localhost:8080/api/admin/contest"));
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
   req.setRawHeader("Authorization", m_token.toUtf8());
   QJsonObject j;
@@ -291,7 +292,7 @@ void AdminTab::createTask() {
   qDebug() << "Client: Creating task:" << m_tTitle->text()
            << "for contest ID:" << m_tContestId->currentData().toInt();
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl("http://localhost:8080/api/admin/task"));
+  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/task"));
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
   req.setRawHeader("Authorization", m_token.toUtf8());
 

@@ -1,3 +1,4 @@
+#include "api_config.h"
 #include "auth_dialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -78,7 +79,7 @@ AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
 void AuthDialog::onEmailLogin() {
     qDebug() << "Client: Attempting login for:" << m_emailLogin->text();
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/login/email"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/login/email"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QJsonObject j; j["email"] = m_emailLogin->text(); j["password"] = m_passLogin->text();
     QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
@@ -104,7 +105,7 @@ void AuthDialog::onEmailRegister() {
     }
     
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/register/request_code"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/register/request_code"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QJsonObject j; j["email"] = m_emailReg->text();
     QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
@@ -124,7 +125,7 @@ void AuthDialog::onEmailRegister() {
 
 void AuthDialog::completeRegistration(const QString& code) {
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/register/email"));
+    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/register/email"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QJsonObject j; 
     j["email"] = m_emailReg->text(); 
@@ -148,7 +149,7 @@ void AuthDialog::completeRegistration(const QString& code) {
 }
 
 void AuthDialog::onGoogleLogin() {
-    QString clientId = "170919746104-iqpvnoialm0enaf8g9fkibd5gcrrn91d.apps.googleusercontent.com";
+    QString clientId = qEnvironmentVariable("GOOGLE_CLIENT_ID", "170919746104-iqpvnoialm0enaf8g9fkibd5gcrrn91d.apps.googleusercontent.com");
     
     QUrl url("https://accounts.google.com/o/oauth2/v2/auth");
     QUrlQuery query;

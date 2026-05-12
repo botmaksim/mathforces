@@ -8,6 +8,8 @@
 class Database {
 public:
     static bool init(const QString& dbName, const QString& user, const QString& pass, const QString& host = "127.0.0.1", int port = 5432);
+    static void createInitialUsers();
+    
     static QString getThreadLocalConnection();
 
     static QJsonObject authenticate(const QString& username, const QString& password);

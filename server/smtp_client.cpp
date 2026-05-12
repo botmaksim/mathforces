@@ -16,7 +16,9 @@ public:
 
     void run() {
         QSslSocket socket;
-        socket.connectToHostEncrypted("smtp.gmail.com", 465);
+        QString host = qEnvironmentVariable("SMTP_HOST", "smtp.gmail.com");
+        int port = qEnvironmentVariable("SMTP_PORT", "465").toInt();
+        socket.connectToHostEncrypted(host, port);
         if (!socket.waitForConnected(5000)) {
             qWarning() << "SMTP: Connection timeout:" << socket.errorString();
             deleteLater();
@@ -50,8 +52,8 @@ public:
         if (!sendCommand("EHLO localhost")) return deleteLater();
         if (!sendCommand("AUTH LOGIN")) return deleteLater();
 
-        QByteArray user = "mathforcesmail@gmail.com";
-        QByteArray pass = "jpmrlohckglxcbrc";
+        QByteArray user = qEnvironmentVariable("SMTP_USER", "mathforcesmail@gmail.com").toUtf8();
+        QByteArray pass = qEnvironmentVariable("SMTP_PASS", "jpmrlohckglxcbrc").toUtf8();
 
         if (!sendCommand(user.toBase64())) return deleteLater();
         if (!sendCommand(pass.toBase64())) return deleteLater();
