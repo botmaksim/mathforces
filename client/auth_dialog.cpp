@@ -1,5 +1,6 @@
 #include "auth_dialog.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QLabel>
 #include <QMessageBox>
@@ -10,35 +11,76 @@
 #include <QJsonDocument>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QUrlQuery>
 #include <QDebug>
+#include <QInputDialog>
+#include <QStackedWidget>
 
 AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Авторизация Mathforces");
-    QVBoxLayout *l = new QVBoxLayout(this);
-    m_email = new QLineEdit(this); m_email->setPlaceholderText("Email (student@example.com)");
-    m_username = new QLineEdit(this); m_username->setPlaceholderText("Username (для регистрации)");
-    m_name = new QLineEdit(this); m_name->setPlaceholderText("Имя (для регистрации)");
-    m_pass = new QLineEdit(this); m_pass->setEchoMode(QLineEdit::Password); m_pass->setPlaceholderText("Пароль");
+    setMinimumWidth(300);
     
-    QPushButton *btnLog = new QPushButton("Вход по Email", this);
-    QPushButton *btnReg = new QPushButton("Регистрация по Email", this);
-    QPushButton *btnGoogle = new QPushButton("Вход через Google", this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    m_stackedWidget = new QStackedWidget(this);
+    mainLayout->addWidget(m_stackedWidget);
     
-    l->addWidget(new QLabel("Добро пожаловать в Mathforces", this));
-    l->addWidget(m_email); l->addWidget(m_pass); l->addWidget(m_username); l->addWidget(m_name);
-    l->addWidget(btnLog); l->addWidget(btnReg); l->addWidget(btnGoogle);
+    // --- Login Widget ---
+    QWidget* loginWidget = new QWidget(this);
+    QVBoxLayout* loginLayout = new QVBoxLayout(loginWidget);
+    m_emailLogin = new QLineEdit(this); m_emailLogin->setPlaceholderText("Email");
+    m_passLogin = new QLineEdit(this); m_passLogin->setEchoMode(QLineEdit::Password); m_passLogin->setPlaceholderText("Пароль");
+    
+    QPushButton *btnLog = new QPushButton("Вход", this);
+    QPushButton *btnGoogle = new QPushButton("Войти через Google", this);
+    QPushButton *btnGoToReg = new QPushButton("Нет аккаунта? Зарегистрируйтесь", this);
+    btnGoToReg->setFlat(true);
+    
+    loginLayout->addWidget(new QLabel("Вход в систему", this));
+    loginLayout->addWidget(m_emailLogin);
+    loginLayout->addWidget(m_passLogin);
+    loginLayout->addWidget(btnLog);
+    loginLayout->addWidget(btnGoogle);
+    loginLayout->addWidget(btnGoToReg);
+    loginLayout->addStretch();
+    
+    // --- Register Widget ---
+    QWidget* regWidget = new QWidget(this);
+    QVBoxLayout* regLayout = new QVBoxLayout(regWidget);
+    m_emailReg = new QLineEdit(this); m_emailReg->setPlaceholderText("Email (student@example.com)");
+    m_usernameReg = new QLineEdit(this); m_usernameReg->setPlaceholderText("Username (уникальный)");
+    m_nameReg = new QLineEdit(this); m_nameReg->setPlaceholderText("Полное имя");
+    m_passReg = new QLineEdit(this); m_passReg->setEchoMode(QLineEdit::Password); m_passReg->setPlaceholderText("Пароль");
+    
+    QPushButton *btnReg = new QPushButton("Отправить код подтверждения", this);
+    QPushButton *btnGoToLog = new QPushButton("Уже есть аккаунт? Войти", this);
+    btnGoToLog->setFlat(true);
+    
+    regLayout->addWidget(new QLabel("Регистрация", this));
+    regLayout->addWidget(m_emailReg);
+    regLayout->addWidget(m_usernameReg);
+    regLayout->addWidget(m_nameReg);
+    regLayout->addWidget(m_passReg);
+    regLayout->addWidget(btnReg);
+    regLayout->addWidget(btnGoToLog);
+    regLayout->addStretch();
+    
+    m_stackedWidget->addWidget(loginWidget);
+    m_stackedWidget->addWidget(regWidget);
     
     connect(btnLog, &QPushButton::clicked, this, &AuthDialog::onEmailLogin);
     connect(btnReg, &QPushButton::clicked, this, &AuthDialog::onEmailRegister);
     connect(btnGoogle, &QPushButton::clicked, this, &AuthDialog::onGoogleLogin);
+    
+    connect(btnGoToReg, &QPushButton::clicked, [this]() { m_stackedWidget->setCurrentIndex(1); });
+    connect(btnGoToLog, &QPushButton::clicked, [this]() { m_stackedWidget->setCurrentIndex(0); });
 }
 
 void AuthDialog::onEmailLogin() {
-    qDebug() << "Client: Attempting login for:" << m_email->text();
+    qDebug() << "Client: Attempting login for:" << m_emailLogin->text();
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
     QNetworkRequest req(QUrl("http://localhost:8080/api/login/email"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QJsonObject j; j["email"] = m_email->text(); j["password"] = m_pass->text();
+    QJsonObject j; j["email"] = m_emailLogin->text(); j["password"] = m_passLogin->text();
     QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
     connect(r, &QNetworkReply::finished, [this, r, m]() {
         if (r->error() == QNetworkReply::NoError) {
@@ -56,28 +98,67 @@ void AuthDialog::onEmailLogin() {
 }
 
 void AuthDialog::onEmailRegister() {
+    if (m_emailReg->text().isEmpty() || m_passReg->text().isEmpty() || m_usernameReg->text().isEmpty()) {
+         QMessageBox::warning(this, "Ошибка", "Заполните все поля");
+         return;
+    }
+    
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl("http://localhost:8080/api/register/email"));
+    QNetworkRequest req(QUrl("http://localhost:8080/api/register/request_code"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QJsonObject j; j["email"] = m_email->text(); j["password"] = m_pass->text(); 
-    j["username"] = m_username->text(); j["name"] = m_name->text();
+    QJsonObject j; j["email"] = m_emailReg->text();
     QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
     connect(r, &QNetworkReply::finished, [this, r, m]() {
         if (r->error() == QNetworkReply::NoError) {
-            QMessageBox::information(this, "Ок", "Регистрация успешна! Теперь вы можете войти.");
+            bool ok;
+            QString code = QInputDialog::getText(this, "Подтверждение Email", "Код отправлен на вашу почту (проверьте консоль сервера).\nВведите код подтверждения:", QLineEdit::Normal, "", &ok);
+            if (ok && !code.isEmpty()) {
+                completeRegistration(code);
+            }
         } else {
-            QMessageBox::warning(this, "Ошибка", "Ошибка регистрации: " + r->errorString());
+            QMessageBox::warning(this, "Ошибка", "Не удалось запросить код: " + r->errorString());
         }
         r->deleteLater(); m->deleteLater();
     });
 }
 
-#include <QInputDialog>
+void AuthDialog::completeRegistration(const QString& code) {
+    QNetworkAccessManager* m = new QNetworkAccessManager(this);
+    QNetworkRequest req(QUrl("http://localhost:8080/api/register/email"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QJsonObject j; 
+    j["email"] = m_emailReg->text(); 
+    j["password"] = m_passReg->text(); 
+    j["username"] = m_usernameReg->text(); 
+    j["name"] = m_nameReg->text();
+    j["code"] = code;
+    
+    QNetworkReply* r = m->post(req, QJsonDocument(j).toJson());
+    connect(r, &QNetworkReply::finished, [this, r, m]() {
+        if (r->error() == QNetworkReply::NoError) {
+            QMessageBox::information(this, "Ок", "Регистрация успешна! Теперь вы можете войти.");
+            m_stackedWidget->setCurrentIndex(0); // Go to login
+            m_emailLogin->setText(m_emailReg->text());
+        } else {
+            QString err = QJsonDocument::fromJson(r->readAll()).object()["error"].toString();
+            QMessageBox::warning(this, "Ошибка", "Ошибка регистрации: " + (err.isEmpty() ? r->errorString() : err));
+        }
+        r->deleteLater(); m->deleteLater();
+    });
+}
 
 void AuthDialog::onGoogleLogin() {
-    QString clientId = "51208074605-s9kj787l62cc20facf4m56uuud5utg9t.apps.googleusercontent.com";
-    QString url = QString("https://accounts.google.com/o/oauth2/v2/auth?client_id=%1&redirect_uri=http://localhost:8080/api/oauth_callback_client&response_type=token&scope=email profile").arg(clientId);
-    QDesktopServices::openUrl(QUrl(url));
+    QString clientId = "170919746104-iqpvnoialm0enaf8g9fkibd5gcrrn91d.apps.googleusercontent.com";
+    
+    QUrl url("https://accounts.google.com/o/oauth2/v2/auth");
+    QUrlQuery query;
+    query.addQueryItem("client_id", clientId);
+    query.addQueryItem("redirect_uri", "http://127.0.0.1:8080/api/oauth_callback_client");
+    query.addQueryItem("response_type", "token");
+    query.addQueryItem("scope", "email profile");
+    url.setQuery(query);
+    
+    QDesktopServices::openUrl(url);
     
     bool ok;
     QString tokenWithRole = QInputDialog::getText(this, "OAuth", "В браузере должна была открыться страница авторизации.\nЕсли авторизация пройдет успешно, появится токен.\n\nВведите полученный токен (token-role):", QLineEdit::Normal, "", &ok);

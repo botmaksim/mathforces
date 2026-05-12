@@ -11,6 +11,8 @@ add_executable(Server
     contest_handler.cpp
     contest_handler.h
     auth_middleware.h
+    smtp_client.cpp
+    smtp_client.h
 )
 
 target_link_libraries(Server PRIVATE 

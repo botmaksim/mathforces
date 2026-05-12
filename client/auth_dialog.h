@@ -2,6 +2,7 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QString>
+#include <QStackedWidget>
 
 class AuthDialog : public QDialog {
     Q_OBJECT
@@ -16,10 +17,20 @@ private slots:
     void onGoogleLogin();
 
 private:
-    QLineEdit* m_email;
-    QLineEdit* m_pass;
-    QLineEdit* m_username;
-    QLineEdit* m_name;
+    void completeRegistration(const QString& code);
+
+    QStackedWidget* m_stackedWidget;
+    
+    // Login fields
+    QLineEdit* m_emailLogin;
+    QLineEdit* m_passLogin;
+    
+    // Registration fields
+    QLineEdit* m_emailReg;
+    QLineEdit* m_usernameReg;
+    QLineEdit* m_nameReg;
+    QLineEdit* m_passReg;
+    
     QString m_token;
     QString m_role;
 };

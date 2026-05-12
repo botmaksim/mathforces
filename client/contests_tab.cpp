@@ -11,14 +11,25 @@
 
 ContestsTab::ContestsTab(const QString& token, QWidget* parent) : QWidget(parent), m_token(token) {
     QVBoxLayout* l = new QVBoxLayout(this);
+    QHBoxLayout* top = new QHBoxLayout();
     QPushButton* btn = new QPushButton("Обновить", this);
+    QPushButton* btnVirtual = new QPushButton("Виртуальное участие", this);
+    top->addWidget(btn); top->addWidget(btnVirtual);
+    
     m_list = new QListWidget(this);
-    l->addWidget(btn); l->addWidget(m_list);
+    l->addLayout(top); l->addWidget(m_list);
     connect(btn, &QPushButton::clicked, this, &ContestsTab::load);
     connect(m_list, &QListWidget::itemDoubleClicked, [this](QListWidgetItem* it) {
         qDebug() << "Client: Selected contest ID:" << it->data(Qt::UserRole).toInt();
         emit contestSelected(it->data(Qt::UserRole).toInt(), it->text());
     });
+    
+    connect(btnVirtual, &QPushButton::clicked, [this]() {
+        if (!m_list->currentItem()) return;
+        int cid = m_list->currentItem()->data(Qt::UserRole).toInt();
+        emit startVirtualParticipation(cid);
+    });
+    
     load();
 }
 
@@ -26,6 +37,8 @@ void ContestsTab::load() {
     qDebug() << "Client: Loading contests";
     QNetworkAccessManager* m = new QNetworkAccessManager(this);
     QNetworkRequest req(QUrl("http://localhost:8080/api/contests"));
+    if (!m_token.isEmpty())
+        req.setRawHeader("Authorization", m_token.toUtf8());
     QNetworkReply* r = m->get(req);
     connect(r, &QNetworkReply::finished, [this, r, m]() {
         m_list->clear();

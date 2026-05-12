@@ -7,6 +7,10 @@ class ContestsTab;
 class ActiveContestTab;
 class ResultsTab;
 class AdminTab;
+class FriendsTab;
+class RatingsTab;
+class UsersTab;
+class ArchiveTab;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -21,7 +25,11 @@ private:
     ContestsTab* m_contestsTab;
     ActiveContestTab* m_activeTab;
     ResultsTab* m_resultsTab;
-    AdminTab* m_adminTab;
+    FriendsTab* m_friendsTab;
+    RatingsTab* m_ratingsTab;
+    ArchiveTab* m_archiveTab;
+    AdminTab* m_adminTab = nullptr;
+    UsersTab* m_usersTab = nullptr;
     
     QString m_token;
     QString m_role;

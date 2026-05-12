@@ -47,3 +47,40 @@ void LlmClient::evaluate(int submissionId, const QString& taskDesc, const QStrin
         reply->deleteLater();
     });
 }
+
+void LlmClient::evaluateHack(int hackId, const QString& editorial, const QString& answer, const QString& hackText, std::function<void(int, bool, const QString&)> callback) {
+    QNetworkRequest req(QUrl("https://openrouter.ai/api/v1/chat/completions"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QString apiKey = qEnvironmentVariable("OPENROUTER_API_KEY", "sk-or-v1-fake");
+    req.setRawHeader("Authorization", QString("Bearer %1").arg(apiKey).toUtf8());
+
+    QJsonObject sysMsg; sysMsg["role"] = "system";
+    sysMsg["content"] = "Ты судья соревнований по математике. Твоя задача — проверить ВЗЛОМ (hack). У тебя есть авторское решение задачи, решение участника и аргумент хакера. Тебе нужно сказать, прав ли хакер. Верни только JSON без маркдауна: {\"is_successful\": boolean, \"explanation\": \"почему\"}.";
+
+    QJsonObject userMsg; userMsg["role"] = "user";
+    userMsg["content"] = QString("Авторское решение: %1\n\nРешение участника: %2\n\nПретензия хакера: %3").arg(editorial, answer, hackText);
+
+    QJsonObject payload;
+    payload["model"] = "openrouter/openai/gpt-4o-mini";
+    payload["messages"] = QJsonArray{sysMsg, userMsg};
+    
+    QJsonObject format; format["type"] = "json_object";
+    payload["response_format"] = format;
+
+    QNetworkReply* reply = manager->post(req, QJsonDocument(payload).toJson());
+    connect(reply, &QNetworkReply::finished, [reply, hackId, callback]() {
+        bool isSuccessful = false;
+        QString explanation = "Ошибка API";
+        if (reply->error() == QNetworkReply::NoError) {
+            QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            QString text = doc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
+            QJsonObject res = QJsonDocument::fromJson(text.toUtf8()).object();
+            isSuccessful = res["is_successful"].toBool();
+            explanation = res["explanation"].toString();
+        } else {
+            explanation = reply->errorString();
+        }
+        callback(hackId, isSuccessful, explanation);
+        reply->deleteLater();
+    });
+}

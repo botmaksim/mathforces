@@ -8,6 +8,7 @@ public:
     ContestsTab(const QString& token, QWidget* parent = nullptr);
 signals:
     void contestSelected(int id, const QString& title);
+    void startVirtualParticipation(int contestId);
 private slots:
     void load();
 private:

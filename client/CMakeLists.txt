@@ -18,6 +18,14 @@ add_executable(Client
     admin_tab.h
     math_highlighter.cpp
     math_highlighter.h
+    users_tab.cpp
+    users_tab.h
+    profile_dialog.cpp
+    profile_dialog.h
+    friends_tab.cpp
+    friends_tab.h
+    archive_tab.cpp
+    archive_tab.h
 )
 
 target_link_libraries(Client PRIVATE 

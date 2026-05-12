@@ -97,10 +97,10 @@ sudo -u postgres psql -d mathforces_db -c "UPDATE users SET email = 'superadmin@
 1. Перейдите в **API и сервисы** -> **Учетные данные**
 2. Откройте своего OAuth-клиента (тип "Веб-приложение")
 3. В поле **Разрешенные источники JavaScript** (Authorized JavaScript origins) введите:
-   `http://localhost:8080`
+   `http://127.0.0.1:8080`
    *(Важно: здесь нельзя вписывать путь, только протокол и домен с портом, иначе будет 'Invalid Origin')*
 4. В поле **Разрешенные URI перенаправления** (Authorized redirect URIs) введите точный путь:
-   `http://localhost:8080/api/oauth_callback_client`
+   `http://127.0.0.1:8080/api/oauth_callback_client`
    *(Без этого точного пути будет ошибка 400: redirect_uri_mismatch)*
 5. Сохраните изменения. На применение настроек Google может уйти 5 минут.
 

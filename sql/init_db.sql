@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS hacks CASCADE;
+DROP TABLE IF EXISTS virtual_participations CASCADE;
 DROP TABLE IF EXISTS comments CASCADE;
 DROP TABLE IF EXISTS blogs CASCADE;
 DROP TABLE IF EXISTS contest_participants CASCADE;
@@ -42,7 +44,26 @@ CREATE TABLE tasks (
     correct_answer TEXT,
     editorial TEXT,
     ai_comment TEXT,
-    send_editorial_to_ai BOOLEAN DEFAULT FALSE
+    send_editorial_to_ai BOOLEAN DEFAULT FALSE,
+    tags TEXT DEFAULT '',
+    difficulty INTEGER DEFAULT 1000
+);
+
+CREATE TABLE virtual_participations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    contest_id INTEGER REFERENCES contests(id) ON DELETE CASCADE,
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(contest_id, user_id)
+);
+
+CREATE TABLE hacks (
+    id SERIAL PRIMARY KEY,
+    hacker_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
+    hack_text TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'successful', 'unsuccessful'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE contest_participants (
