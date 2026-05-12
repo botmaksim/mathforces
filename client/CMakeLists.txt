@@ -26,6 +26,8 @@ add_executable(Client
     friends_tab.h
     archive_tab.cpp
     archive_tab.h
+    ratings_tab.cpp
+    ratings_tab.h
 )
 
 target_link_libraries(Client PRIVATE 
