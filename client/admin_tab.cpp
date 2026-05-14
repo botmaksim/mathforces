@@ -1,5 +1,5 @@
-#include "api_config.h"
 #include "admin_tab.h"
+#include "api_config.h"
 #include "math_highlighter.h"
 #include <QCheckBox>
 #include <QDateTimeEdit>
@@ -21,7 +21,7 @@
 AdminTab::AdminTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
   QVBoxLayout *mainVert = new QVBoxLayout(this);
-  
+
   QHBoxLayout *topL = new QHBoxLayout();
   topL->addWidget(new QLabel("Текущий 컨тест:"));
   m_selectContest = new QComboBox();
@@ -153,11 +153,13 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   ML->addWidget(g1);
   ML->addWidget(g2);
   ML->addWidget(g3);
-  
-  connect(m_btnCreateDraft, &QPushButton::clicked, this, &AdminTab::createDraftContest);
+
+  connect(m_btnCreateDraft, &QPushButton::clicked, this,
+          &AdminTab::createDraftContest);
   connect(b1, &QPushButton::clicked, this, &AdminTab::updateContest);
   connect(b2, &QPushButton::clicked, this, &AdminTab::createTask);
-  connect(m_selectContest, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &AdminTab::onContestSelectionChanged);
+  connect(m_selectContest, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &AdminTab::onContestSelectionChanged);
 
   connect(btnPreviewEditorial, &QPushButton::clicked, [this]() {
     QString typstCode = m_tEditorial->toPlainText();
@@ -216,9 +218,9 @@ void AdminTab::loadMyContests() {
       for (auto v : m_currentContestsArray) {
         QJsonObject o = v.toObject();
         m_selectContest->addItem(QString("%1 (ID: %2)")
-                                  .arg(o["title"].toString())
-                                  .arg(o["id"].toInt()),
-                              o["id"].toInt());
+                                     .arg(o["title"].toString())
+                                     .arg(o["id"].toInt()),
+                                 o["id"].toInt());
       }
     }
     r->deleteLater();
@@ -227,13 +229,15 @@ void AdminTab::loadMyContests() {
 }
 
 void AdminTab::onContestSelectionChanged(int index) {
-    if (index < 0 || index >= m_currentContestsArray.size()) return;
-    QJsonObject o = m_currentContestsArray[index].toObject();
-    m_cTitle->setText(o["title"].toString());
-    m_cDesc->setPlainText(o["description"].toString());
-    m_cStart->setDateTime(QDateTime::fromString(o["start_time"].toString(), Qt::ISODate));
-    m_cDuration->setValue(o["duration_hours"].toDouble());
-    m_cIsPublished->setChecked(o["is_published"].toBool());
+  if (index < 0 || index >= m_currentContestsArray.size())
+    return;
+  QJsonObject o = m_currentContestsArray[index].toObject();
+  m_cTitle->setText(o["title"].toString());
+  m_cDesc->setPlainText(o["description"].toString());
+  m_cStart->setDateTime(
+      QDateTime::fromString(o["start_time"].toString(), Qt::ISODate));
+  m_cDuration->setValue(o["duration_hours"].toDouble());
+  m_cIsPublished->setChecked(o["is_published"].toBool());
 }
 
 void AdminTab::createDraftContest() {
@@ -257,9 +261,10 @@ void AdminTab::createDraftContest() {
 
 void AdminTab::updateContest() {
   int cIdx = m_selectContest->currentIndex();
-  if (cIdx < 0) return;
+  if (cIdx < 0)
+    return;
   int cId = m_selectContest->itemData(cIdx).toInt();
-  
+
   QNetworkAccessManager *m = new QNetworkAccessManager(this);
   QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -333,9 +338,10 @@ void AdminTab::onTaskTypeChanged(int index) {
 
 void AdminTab::createTask() {
   int cIdx = m_selectContest->currentIndex();
-  if (cIdx < 0) return;
+  if (cIdx < 0)
+    return;
   int cId = m_selectContest->itemData(cIdx).toInt();
-  
+
   qDebug() << "Client: Creating task:" << m_tTitle->text()
            << "for contest ID:" << cId;
   QNetworkAccessManager *m = new QNetworkAccessManager(this);

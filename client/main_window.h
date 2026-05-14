@@ -1,7 +1,7 @@
 #pragma once
 #include <QMainWindow>
-#include <QTabWidget>
 #include <QString>
+#include <QTabWidget>
 
 class ContestsTab;
 class ActiveContestTab;
@@ -13,24 +13,25 @@ class UsersTab;
 class ArchiveTab;
 
 class MainWindow : public QMainWindow {
-    Q_OBJECT
+  Q_OBJECT
 public:
-    MainWindow(const QString& token, const QString& role, QWidget *parent = nullptr);
+  MainWindow(const QString &token, const QString &role,
+             QWidget *parent = nullptr);
 
 public slots:
-    void openContest(int contestId, const QString& title);
+  void openContest(int contestId, const QString &title);
 
 private:
-    QTabWidget* m_tabs;
-    ContestsTab* m_contestsTab;
-    ActiveContestTab* m_activeTab;
-    ResultsTab* m_resultsTab;
-    FriendsTab* m_friendsTab;
-    RatingsTab* m_ratingsTab;
-    ArchiveTab* m_archiveTab;
-    AdminTab* m_adminTab = nullptr;
-    UsersTab* m_usersTab = nullptr;
-    
-    QString m_token;
-    QString m_role;
+  QTabWidget *m_tabs;
+  ContestsTab *m_contestsTab;
+  ActiveContestTab *m_activeTab;
+  ResultsTab *m_resultsTab;
+  FriendsTab *m_friendsTab;
+  RatingsTab *m_ratingsTab;
+  ArchiveTab *m_archiveTab;
+  AdminTab *m_adminTab = nullptr;
+  UsersTab *m_usersTab = nullptr;
+
+  QString m_token;
+  QString m_role;
 };

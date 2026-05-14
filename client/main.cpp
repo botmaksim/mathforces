@@ -1,53 +1,57 @@
-#include <QApplication>
-#include <QFile>
-#include <QTextStream>
-#include <QDir>
+#include "api_config.h"
 #include "auth_dialog.h"
 #include "main_window.h"
-#include "api_config.h"
+#include <QApplication>
+#include <QDir>
+#include <QFile>
+#include <QTextStream>
 
 namespace ApiConfig {
-    QString baseUrl = "http://127.0.0.1:3000";
+QString baseUrl = "http://127.0.0.1:3000";
 }
 
 void loadEnvForClient() {
-    // Ищем config.env в текущей папке или выше
-    QFile file("../config.env");
-    if (!file.exists()) file.setFileName("../../config.env");
-    if (!file.exists()) file.setFileName("config.env");
-    
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return; 
+  // Ищем config.env в текущей папке или выше
+  QFile file("../config.env");
+  if (!file.exists())
+    file.setFileName("../../config.env");
+  if (!file.exists())
+    file.setFileName("config.env");
+
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    return;
+  }
+  QTextStream in(&file);
+  while (!in.atEnd()) {
+    QString line = in.readLine().trimmed();
+    if (line.isEmpty() || line.startsWith("#"))
+      continue;
+    int idx = line.indexOf('=');
+    if (idx != -1) {
+      QString key = line.left(idx).trimmed();
+      QString val = line.mid(idx + 1).trimmed();
+      if (val.startsWith("\"") && val.endsWith("\"")) {
+        val = val.mid(1, val.length() - 2);
+      }
+      if (key == "CLIENT_BASE_URL") {
+        ApiConfig::baseUrl = val;
+      } else if (key == "SERVER_PORT" && !ApiConfig::baseUrl.contains(val)) {
+        // Пытаемся адаптировать, если CLIENT_BASE_URL не задан, но изменен
+        // SERVER_PORT
+        ApiConfig::baseUrl = "http://127.0.0.1:" + val;
+      }
     }
-    QTextStream in(&file);
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        if (line.isEmpty() || line.startsWith("#")) continue;
-        int idx = line.indexOf('=');
-        if (idx != -1) {
-            QString key = line.left(idx).trimmed();
-            QString val = line.mid(idx + 1).trimmed();
-            if (val.startsWith("\"") && val.endsWith("\"")) {
-                val = val.mid(1, val.length() - 2);
-            }
-            if (key == "CLIENT_BASE_URL") {
-                ApiConfig::baseUrl = val;
-            } else if (key == "SERVER_PORT" && !ApiConfig::baseUrl.contains(val)) {
-                // Пытаемся адаптировать, если CLIENT_BASE_URL не задан, но изменен SERVER_PORT
-                ApiConfig::baseUrl = "http://127.0.0.1:" + val;
-            }
-        }
-    }
+  }
 }
 
 int main(int argc, char *argv[]) {
-    QApplication app(argc, argv);
-    app.setStyle("Fusion");
+  QApplication app(argc, argv);
+  app.setStyle("Fusion");
 
-    loadEnvForClient();
+  loadEnvForClient();
 
-    // Светлый/Темный минималистичный стиль QSS
-    app.setStyleSheet(R"(
+  // Светлый/Темный минималистичный стиль QSS
+  app.setStyleSheet(R"(
         QWidget { background-color: #2b2b2b; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; font-size: 14pt; }
         QPushButton { background-color: #007acc; color: white; padding: 6px 12px; border: none; border-radius: 4px; }
         QPushButton:hover { background-color: #0098ff; }
@@ -59,12 +63,12 @@ int main(int argc, char *argv[]) {
         QHeaderView::section { background-color: #444; padding: 4px; }
     )");
 
-    AuthDialog auth;
-    if (auth.exec() == QDialog::Accepted) {
-        MainWindow w(auth.getToken(), auth.getRole());
-        w.resize(1024, 768);
-        w.show();
-        return app.exec();
-    }
-    return 0;
+  AuthDialog auth;
+  if (auth.exec() == QDialog::Accepted) {
+    MainWindow w(auth.getToken(), auth.getRole());
+    w.resize(1024, 768);
+    w.show();
+    return app.exec();
+  }
+  return 0;
 }

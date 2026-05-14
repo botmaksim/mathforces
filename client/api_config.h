@@ -2,5 +2,5 @@
 #include <QString>
 
 namespace ApiConfig {
-    extern QString baseUrl;
+extern QString baseUrl;
 }

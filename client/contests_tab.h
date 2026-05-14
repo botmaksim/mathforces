@@ -1,17 +1,18 @@
 #pragma once
-#include <QWidget>
 #include <QListWidget>
+#include <QWidget>
 
 class ContestsTab : public QWidget {
-    Q_OBJECT
+  Q_OBJECT
 public:
-    ContestsTab(const QString& token, QWidget* parent = nullptr);
+  ContestsTab(const QString &token, QWidget *parent = nullptr);
 signals:
-    void contestSelected(int id, const QString& title);
-    void startVirtualParticipation(int contestId);
+  void contestSelected(int id, const QString &title);
+  void startVirtualParticipation(int contestId);
 private slots:
-    void load();
+  void load();
+
 private:
-    QString m_token;
-    QListWidget* m_list;
+  QString m_token;
+  QListWidget *m_list;
 };

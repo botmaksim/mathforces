@@ -1,11 +1,12 @@
 #pragma once
-#include <QHttpServer>
 #include "llm_client.h"
+#include <QHttpServer>
 
 class ContestHandler {
 public:
-    ContestHandler();
-    void registerRoutes(QHttpServer& server);
+  ContestHandler();
+  void registerRoutes(QHttpServer &server);
+
 private:
-    LlmClient m_llm;
+  LlmClient m_llm;
 };
