@@ -1,82 +1,60 @@
 #include "contests_tab.h"
-#include "api_config.h"
-#include <QDebug>
-#include <QHBoxLayout>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QLabel>
-#include <QPushButton>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QLabel>
+#include <QHeaderView>
+#include <QMenu>
 
 ContestsTab::ContestsTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
   QVBoxLayout *l = new QVBoxLayout(this);
-  l->setContentsMargins(4, 4, 4, 4);
-  l->setSpacing(14);
-
-  QLabel *title = new QLabel("Ближайшие контесты", this);
+  QLabel *title = new QLabel("Ближайшие контесты (Архитектура MVP, Cache: SQLite)", this);
   title->setObjectName("sectionTitle");
-  QLabel *hint = new QLabel("Дважды нажмите на контест, чтобы открыть задачи. Для тренировки выберите виртуальное участие.", this);
-  hint->setObjectName("mutedLabel");
-  hint->setWordWrap(true);
 
   QHBoxLayout *top = new QHBoxLayout();
-  top->setSpacing(10);
-  QPushButton *btn = new QPushButton("Обновить список", this);
-  QPushButton *btnVirtual = new QPushButton("Начать виртуально", this);
+  QPushButton *btn = new QPushButton("Обновить", this);
   top->addWidget(btn);
-  top->addWidget(btnVirtual);
   top->addStretch();
 
-  m_list = new QListWidget(this);
-  l->addWidget(title);
-  l->addWidget(hint);
-  l->addLayout(top);
-  l->addWidget(m_list);
-  connect(btn, &QPushButton::clicked, this, &ContestsTab::load);
-  connect(m_list, &QListWidget::itemDoubleClicked, [this](QListWidgetItem *it) {
-    qDebug() << "Client: Selected contest ID:"
-             << it->data(Qt::UserRole).toInt();
-    emit contestSelected(it->data(Qt::UserRole).toInt(), it->text());
-  });
-
-  connect(btnVirtual, &QPushButton::clicked, [this]() {
-    if (!m_list->currentItem())
-      return;
-    int cid = m_list->currentItem()->data(Qt::UserRole).toInt();
-    emit startVirtualParticipation(cid);
-  });
-
-  load();
-}
-
-void ContestsTab::load() {
-  qDebug() << "Client: Loading contests";
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/contests"));
-  if (!m_token.isEmpty())
-    req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    m_list->clear();
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Contests loaded successfully";
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      for (auto v : arr) {
-        QJsonObject o = v.toObject();
-        QListWidgetItem *item = new QListWidgetItem(
-            o["title"].toString() + " (" + o["start_time"].toString() + ")");
-        item->setData(Qt::UserRole, o["id"].toInt());
-        m_list->addItem(item);
+  m_tableView = new QTableView(this);
+  m_model = new ContestModel(this);
+  m_tableView->setModel(m_model);
+  m_tableView->horizontalHeader()->setStretchLastSection(true);
+  
+  m_tableView->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(m_tableView, &QTableView::customContextMenuRequested, [this](const QPoint &pos) {
+      QModelIndex index = m_tableView->indexAt(pos);
+      if (index.isValid()) {
+          QMenu menu(this);
+          QAction* vAct = menu.addAction("Начать виртуальное участие");
+          connect(vAct, &QAction::triggered, [this, index]() {
+              m_presenter->startVirtualParticipation(m_model->getId(index.row()));
+          });
+          menu.exec(m_tableView->viewport()->mapToGlobal(pos));
       }
-    } else {
-      qDebug() << "Client Error loading contests:" << r->errorString();
-    }
-    r->deleteLater();
-    m->deleteLater();
   });
+  
+  l->addWidget(title);
+  l->addLayout(top);
+  l->addWidget(m_tableView);
+
+  // Изолированная бизнес-логика
+  m_presenter = new ContestsPresenter(m_model, token, this);
+  connect(btn, &QPushButton::clicked, m_presenter, &ContestsPresenter::loadContests);
+  
+  connect(m_presenter, &ContestsPresenter::virtualParticipationStarted, [this](int cid) {
+      emit virtualReadyToOpen(cid);
+  });
+
+  connect(m_tableView, &QTableView::doubleClicked, [this](const QModelIndex& idx) {
+      if (idx.isValid()) {
+         int id = m_model->getId(idx.row());
+         QString title = m_model->getTitle(idx.row());
+         emit contestSelected(id, title);
+      }
+  });
+
+  // Запуск локального кэша и фонового обновления
+  m_presenter->loadContests();
 }

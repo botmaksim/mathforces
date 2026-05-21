@@ -5,13 +5,8 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QUrl>
@@ -114,6 +109,8 @@ AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
 
   m_stackedWidget->addWidget(loginWidget);
   m_stackedWidget->addWidget(regWidget);
+  
+  m_presenter = new AuthPresenter(this);
 
   connect(btnLog, &QPushButton::clicked, this, &AuthDialog::onEmailLogin);
   connect(btnReg, &QPushButton::clicked, this, &AuthDialog::onEmailRegister);
@@ -123,33 +120,37 @@ AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
           [this]() { m_stackedWidget->setCurrentIndex(1); });
   connect(btnGoToLog, &QPushButton::clicked,
           [this]() { m_stackedWidget->setCurrentIndex(0); });
+          
+  connect(m_presenter, &AuthPresenter::loginSuccessful, this, [this](const QString& token, const QString& role) {
+      m_token = token;
+      m_role = role;
+      if (m_stackedWidget->currentIndex() == 1) { // Was doing reg
+          QMessageBox::information(this, "Ок", "Регистрация успешна! Теперь вы можете войти.");
+          m_stackedWidget->setCurrentIndex(0); // Go to login
+          m_emailLogin->setText(m_emailReg->text());
+          m_token = ""; m_role = ""; // clear, user must login now or it's auto-login? the old code showed Ok and went to login
+      } else {
+          accept();
+      }
+  });
+
+  connect(m_presenter, &AuthPresenter::codeRequested, this, [this]() {
+      bool ok;
+      QString code = QInputDialog::getText(this, "Подтверждение Email",
+                            "Код отправлен на вашу почту (проверьте консоль сервера).\nВведите код подтверждения:",
+                            QLineEdit::Normal, "", &ok);
+      if (ok && !code.isEmpty()) {
+        completeRegistration(code);
+      }
+  });
+
+  connect(m_presenter, &AuthPresenter::errorOccurred, this, [this](const QString& err) {
+      QMessageBox::warning(this, "Ошибка", err);
+  });
 }
 
 void AuthDialog::onEmailLogin() {
-  qDebug() << "Client: Attempting login for:" << m_emailLogin->text();
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/login/email"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  QJsonObject j;
-  j["email"] = m_emailLogin->text();
-  j["password"] = m_passLogin->text();
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Login successful";
-      QJsonObject res = QJsonDocument::fromJson(r->readAll()).object();
-      m_token = res["token"].toString();
-      m_role = res["role"].toString();
-      accept();
-    } else {
-      qDebug() << "Client: Login failed. Error:" << r->errorString();
-      QString err =
-          QJsonDocument::fromJson(r->readAll()).object()["error"].toString();
-      QMessageBox::warning(this, "Ошибка", "Неверные данные! " + err);
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->login(m_emailLogin->text(), m_passLogin->text());
 }
 
 void AuthDialog::onEmailRegister() {
@@ -158,77 +159,23 @@ void AuthDialog::onEmailRegister() {
     QMessageBox::warning(this, "Ошибка", "Заполните все поля");
     return;
   }
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/register/request_code"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  QJsonObject j;
-  j["email"] = m_emailReg->text();
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      bool ok;
-      QString code =
-          QInputDialog::getText(this, "Подтверждение Email",
-                                "Код отправлен на вашу почту (проверьте "
-                                "консоль сервера).\nВведите код подтверждения:",
-                                QLineEdit::Normal, "", &ok);
-      if (ok && !code.isEmpty()) {
-        completeRegistration(code);
-      }
-    } else {
-      QMessageBox::warning(this, "Ошибка",
-                           "Не удалось запросить код: " + r->errorString());
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->requestCode(m_emailReg->text());
 }
 
 void AuthDialog::completeRegistration(const QString &code) {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/register/email"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  QJsonObject j;
-  j["email"] = m_emailReg->text();
-  j["password"] = m_passReg->text();
-  j["username"] = m_usernameReg->text();
-  j["name"] = m_nameReg->text();
-  j["code"] = code;
-
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QMessageBox::information(this, "Ок",
-                               "Регистрация успешна! Теперь вы можете войти.");
-      m_stackedWidget->setCurrentIndex(0); // Go to login
-      m_emailLogin->setText(m_emailReg->text());
-    } else {
-      QString err =
-          QJsonDocument::fromJson(r->readAll()).object()["error"].toString();
-      QMessageBox::warning(this, "Ошибка",
-                           "Ошибка регистрации: " +
-                               (err.isEmpty() ? r->errorString() : err));
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->registerUser(code, m_emailReg->text(), m_usernameReg->text(), m_nameReg->text(), m_passReg->text());
 }
 
 void AuthDialog::onGoogleLogin() {
   QString clientId = qEnvironmentVariable(
-      "GOOGLE_CLIENT_ID", "170919746104-iqpvnoialm0enaf8g9fkibd5gcrrn91d.apps."
-                          "googleusercontent.com");
-
+      "GOOGLE_CLIENT_ID", "170919746104-iqpvnoialm0enaf8g9fkibd5gcrrn91d.apps.googleusercontent.com");
   QUrl url("https://accounts.google.com/o/oauth2/v2/auth");
   QUrlQuery query;
   query.addQueryItem("client_id", clientId);
-  query.addQueryItem("redirect_uri",
-                     ApiConfig::baseUrl + "/api/oauth_callback_client");
+  query.addQueryItem("redirect_uri", ApiConfig::baseUrl + "/api/oauth_callback_client");
   query.addQueryItem("response_type", "token");
   query.addQueryItem("scope", "email profile");
   url.setQuery(query);
-
   QDesktopServices::openUrl(url);
 
   bool ok;
@@ -236,16 +183,13 @@ void AuthDialog::onGoogleLogin() {
       this, "OAuth",
       "В браузере должна была открыться страница авторизации.\nЕсли "
       "авторизация пройдет успешно, появится токен.\n\nВведите полученный "
-      "токен (token-role):",
-      QLineEdit::Normal, "", &ok);
+      "токен (token-role):", QLineEdit::Normal, "", &ok);
   if (ok && !tokenWithRole.isEmpty()) {
     QStringList parts = tokenWithRole.split("-");
     if (parts.size() >= 2) {
       m_token = parts[0];
       m_role = parts[1];
       accept();
-    } else {
-      QMessageBox::warning(this, "Ошибка", "Неверный формат токена");
-    }
+    } else QMessageBox::warning(this, "Ошибка", "Неверный формат токена");
   }
 }

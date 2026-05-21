@@ -1,5 +1,4 @@
 #include "profile_dialog.h"
-#include "api_config.h"
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -7,9 +6,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 
 ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
                              const QString &myRole, QWidget *parent)
@@ -17,6 +13,8 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
       m_myRole(myRole), m_isSelf(false), m_canBlog(false), m_myUserId(-1) {
   setWindowTitle("Профиль пользователя");
   resize(720, 820);
+
+  m_presenter = new ProfilePresenter(m_token, this);
 
   QVBoxLayout *L = new QVBoxLayout(this);
   L->setContentsMargins(22, 22, 22, 22);
@@ -57,41 +55,16 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   sa->setWidget(m_blogContainer);
   L->addWidget(sa);
 
-  fetchMyId();
-}
-
-void ProfileDialog::fetchMyId() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(
-      QUrl(ApiConfig::baseUrl + "/api/users/profile")); // my profile
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonObject o = QJsonDocument::fromJson(r->readAll()).object();
-      m_myUserId = o["id"].toInt();
-    }
-    r->deleteLater();
-    m->deleteLater();
-    loadProfile();
+  // Connection logic
+  connect(m_presenter, &ProfilePresenter::myIdLoaded, this, [this](int id){
+      m_myUserId = id;
+      loadProfile();
   });
-}
-
-void ProfileDialog::loadProfile() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  // target profile
-  QNetworkRequest req(
-      QUrl(QString(ApiConfig::baseUrl + "/api/users/profile?id=%1")
-               .arg(m_targetUserId)));
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonObject o = QJsonDocument::fromJson(r->readAll()).object();
+  
+  connect(m_presenter, &ProfilePresenter::profileLoaded, this, [this](const QJsonObject& o){
       m_lblUsername->setText(o["username"].toString());
       m_lblName->setText(o["name"].toString());
-      m_lblRating->setText("Эло (Рейтинг): " +
-                           QString::number(o["rating"].toInt()));
+      m_lblRating->setText("Эло (Рейтинг): " + QString::number(o["rating"].toInt()));
 
       if (o.contains("email")) {
         m_lblEmail->setText("Email: " + o["email"].toString());
@@ -111,31 +84,14 @@ void ProfileDialog::loadProfile() {
       }
 
       loadBlogPosts();
-    } else {
-      m_lblUsername->setText("Ошибка загрузки профиля");
-    }
-    r->deleteLater();
-    m->deleteLater();
   });
-}
-
-void ProfileDialog::loadBlogPosts() {
-  QLayoutItem *child;
-  while ((child = m_blogLayout->takeAt(0)) != nullptr) {
-    if (child->widget())
-      child->widget()->deleteLater();
-    delete child;
-  }
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(
-      QUrl(QString(ApiConfig::baseUrl + "/api/blog/posts?user_id=%1")
-               .arg(m_targetUserId)));
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
+  
+  connect(m_presenter, &ProfilePresenter::blogPostsLoaded, this, [this](const QJsonArray& arr){
+      QLayoutItem *child;
+      while ((child = m_blogLayout->takeAt(0)) != nullptr) {
+        if (child->widget()) child->widget()->deleteLater();
+        delete child;
+      }
       for (auto v : arr) {
         QJsonObject o = v.toObject();
         QFrame *f = new QFrame(m_blogContainer);
@@ -147,42 +103,43 @@ void ProfileDialog::loadBlogPosts() {
         cLbl->setWordWrap(true);
         QPushButton *bComment = new QPushButton("Комментарии");
         int pid = o["id"].toInt();
-        connect(bComment, &QPushButton::clicked,
-                [this, pid]() { showComments(pid); });
+        connect(bComment, &QPushButton::clicked, [this, pid]() { showComments(pid); });
         l->addWidget(dateLbl);
         l->addWidget(cLbl);
         l->addWidget(bComment);
         m_blogLayout->addWidget(f);
       }
-    }
-    m_blogLayout->addStretch();
-    r->deleteLater();
-    m->deleteLater();
+      m_blogLayout->addStretch();
   });
+  
+  connect(m_presenter, &ProfilePresenter::blogPostAdded, this, [this](){
+      m_txtNewPost->clear();
+      loadBlogPosts();
+  });
+  
+  connect(m_presenter, &ProfilePresenter::errorOccurred, this, [this](const QString& err){
+      QMessageBox::warning(this, "Ошибка", err);
+  });
+
+  fetchMyId();
+}
+
+void ProfileDialog::fetchMyId() {
+  m_presenter->fetchMyId();
+}
+
+void ProfileDialog::loadProfile() {
+  m_presenter->loadProfile(m_targetUserId);
+}
+
+void ProfileDialog::loadBlogPosts() {
+  m_presenter->loadBlogPosts(m_targetUserId);
 }
 
 void ProfileDialog::addBlogPost() {
   QString c = m_txtNewPost->toPlainText();
-  if (c.isEmpty())
-    return;
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/blog/posts"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["content"] = c;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      m_txtNewPost->clear();
-      loadBlogPosts();
-    } else {
-      QMessageBox::warning(this, "Ошибка",
-                           "Не удалось отправить запись: " + r->errorString());
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  if (c.isEmpty()) return;
+  m_presenter->addBlogPost(c);
 }
 
 void ProfileDialog::showComments(int postId) {
@@ -204,60 +161,42 @@ void ProfileDialog::showComments(int postId) {
   l->addWidget(te);
   l->addWidget(b);
 
-  auto loadC = [&]() {
-    QLayoutItem *item;
-    while ((item = cl->takeAt(0)) != nullptr) {
-      if (item->widget())
-        item->widget()->deleteLater();
-      delete item;
-    }
-    QNetworkAccessManager *m = new QNetworkAccessManager(&d);
-    QNetworkRequest req(
-        QUrl(QString(ApiConfig::baseUrl + "/api/blog/comments?post_id=%1")
-                 .arg(postId)));
-    req.setRawHeader("Authorization", m_token.toUtf8());
-    QNetworkReply *r = m->get(req);
-    QObject::connect(r, &QNetworkReply::finished, [&, r, m]() {
-      if (r->error() == QNetworkReply::NoError) {
-        QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-        for (auto v : arr) {
-          QJsonObject o = v.toObject();
-          QLabel *lbl = new QLabel(QString("<b>%1</b> <i>%2</i><br>%3")
-                                       .arg(o["username"].toString(),
-                                            o["created_at"].toString(),
-                                            o["content"].toString()));
-          lbl->setWordWrap(true);
-          cl->addWidget(lbl);
-        }
-        cl->addStretch();
-      }
-      r->deleteLater();
-      m->deleteLater();
-    });
+  auto loadC = [this, postId]() {
+      m_presenter->loadComments(postId);
   };
-
-  QObject::connect(b, &QPushButton::clicked, [&]() {
-    QString txt = te->toPlainText();
-    if (txt.isEmpty())
-      return;
-    QNetworkAccessManager *m = new QNetworkAccessManager(&d);
-    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/blog/comments"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setRawHeader("Authorization", m_token.toUtf8());
-    QJsonObject j;
-    j["post_id"] = postId;
-    j["content"] = txt;
-    QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-    QObject::connect(r, &QNetworkReply::finished, [&, r, m]() {
-      if (r->error() == QNetworkReply::NoError) {
-        te->clear();
-        loadC();
+  
+  auto connLoader = connect(m_presenter, &ProfilePresenter::commentsLoaded, [cl](const QJsonArray& arr){
+      QLayoutItem *item;
+      while ((item = cl->takeAt(0)) != nullptr) {
+        if (item->widget()) item->widget()->deleteLater();
+        delete item;
       }
-      r->deleteLater();
-      m->deleteLater();
-    });
+      for (auto v : arr) {
+        QJsonObject o = v.toObject();
+        QLabel *lbl = new QLabel(QString("<b>%1</b> <i>%2</i><br>%3")
+                                     .arg(o["username"].toString(),
+                                          o["created_at"].toString(),
+                                          o["content"].toString()));
+        lbl->setWordWrap(true);
+        cl->addWidget(lbl);
+      }
+      cl->addStretch();
+  });
+  
+  auto connAdder = connect(m_presenter, &ProfilePresenter::commentAdded, [loadC, te](){
+      te->clear();
+      loadC();
+  });
+
+  QObject::connect(b, &QPushButton::clicked, [this, postId, te]() {
+      QString txt = te->toPlainText();
+      if (txt.isEmpty()) return;
+      m_presenter->addComment(postId, txt);
   });
 
   loadC();
   d.exec();
+  
+  disconnect(connLoader);
+  disconnect(connAdder);
 }

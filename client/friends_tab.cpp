@@ -1,16 +1,10 @@
 #include "friends_tab.h"
-#include "api_config.h"
 #include "profile_dialog.h"
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QVBoxLayout>
+#include <QDebug>
 
 FriendsTab::FriendsTab(const QString &token, const QString &myRole,
                        QWidget *parent)
@@ -35,7 +29,11 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   searchLayout->addWidget(m_searchEdit);
   searchLayout->addWidget(m_btnSearch);
 
-  m_searchResults = new QListWidget();
+  m_searchResults = new QListView();
+  m_searchModel = new UsersListModel(this);
+  m_searchResults->setModel(m_searchModel);
+  m_searchResults->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  
   m_btnAddFriend = new QPushButton("Добавить в друзья");
 
   leftLayout->addWidget(searchTitle);
@@ -49,7 +47,12 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   rightLayout->setSpacing(12);
   QLabel *friendsTitle = new QLabel("Мои друзья", this);
   friendsTitle->setObjectName("sectionTitle");
-  m_friendsList = new QListWidget();
+  
+  m_friendsList = new QListView();
+  m_friendsModel = new UsersListModel(this);
+  m_friendsList->setModel(m_friendsModel);
+  m_friendsList->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  
   m_btnRemoveFriend = new QPushButton("Удалить из друзей");
   QPushButton *btnRefresh = new QPushButton("Обновить друзей");
 
@@ -61,115 +64,59 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   mainLayout->addLayout(leftLayout, 1);
   mainLayout->addLayout(rightLayout, 1);
 
+  m_presenter = new FriendsPresenter(m_searchModel, m_friendsModel, m_token, this);
+
   connect(m_btnSearch, &QPushButton::clicked, this, &FriendsTab::searchUsers);
   connect(btnRefresh, &QPushButton::clicked, this, &FriendsTab::loadFriends);
-  connect(m_searchResults, &QListWidget::itemDoubleClicked, this,
-          &FriendsTab::onUserClicked);
-  connect(m_friendsList, &QListWidget::itemDoubleClicked, this,
-          &FriendsTab::onUserClicked);
+  connect(m_searchResults, &QListView::doubleClicked, this,
+          &FriendsTab::onSearchUserDoubleClicked);
+  connect(m_friendsList, &QListView::doubleClicked, this,
+          &FriendsTab::onFriendDoubleClicked);
   connect(m_btnAddFriend, &QPushButton::clicked, this, &FriendsTab::addFriend);
   connect(m_btnRemoveFriend, &QPushButton::clicked, this,
           &FriendsTab::removeFriend);
+  
+  connect(m_presenter, &FriendsPresenter::errorOccurred, this, [](const QString& err){
+      qDebug() << "Friends error:" << err;
+  });
 
   loadFriends();
 }
 
 void FriendsTab::searchUsers() {
-  QString q = m_searchEdit->text();
-  if (q.isEmpty())
-    return;
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(
-      QUrl(QString(ApiConfig::baseUrl + "/api/users/search?q=%1").arg(q)));
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      m_searchResults->clear();
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      for (auto v : arr) {
-        QJsonObject o = v.toObject();
-        QListWidgetItem *item = new QListWidgetItem(
-            QString("%1 (%2) - Эло: %3")
-                .arg(o["username"].toString(), o["name"].toString(),
-                     QString::number(o["rating"].toInt())));
-        item->setData(Qt::UserRole, o["id"].toInt());
-        m_searchResults->addItem(item);
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->searchUsers(m_searchEdit->text());
 }
 
 void FriendsTab::loadFriends() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/list"));
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      m_friendsList->clear();
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      for (auto v : arr) {
-        QJsonObject o = v.toObject();
-        QListWidgetItem *item = new QListWidgetItem(
-            QString("%1 (%2) - Эло: %3")
-                .arg(o["username"].toString(), o["name"].toString(),
-                     QString::number(o["rating"].toInt())));
-        item->setData(Qt::UserRole, o["id"].toInt());
-        m_friendsList->addItem(item);
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->loadFriends();
 }
 
-void FriendsTab::onUserClicked(QListWidgetItem *item) {
-  int id = item->data(Qt::UserRole).toInt();
-  ProfileDialog d(m_token, id, m_myRole, this);
-  d.exec();
+void FriendsTab::onSearchUserDoubleClicked(const QModelIndex& index) {
+  int id = m_searchModel->getUserId(index.row());
+  if (id > 0) {
+      ProfileDialog d(m_token, id, m_myRole, this);
+      d.exec();
+  }
+}
+
+void FriendsTab::onFriendDoubleClicked(const QModelIndex& index) {
+  int id = m_friendsModel->getUserId(index.row());
+  if (id > 0) {
+      ProfileDialog d(m_token, id, m_myRole, this);
+      d.exec();
+  }
 }
 
 void FriendsTab::addFriend() {
-  auto item = m_searchResults->currentItem();
-  if (!item)
-    return;
-  int id = item->data(Qt::UserRole).toInt();
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/add"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["friend_id"] = id;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      loadFriends();
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  auto index = m_searchResults->currentIndex();
+  if (index.isValid()) {
+      m_presenter->addFriend(m_searchModel->getUserId(index.row()));
+  }
 }
 
 void FriendsTab::removeFriend() {
-  auto item = m_friendsList->currentItem();
-  if (!item)
-    return;
-  int id = item->data(Qt::UserRole).toInt();
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/friends/remove"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["friend_id"] = id;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      loadFriends();
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  auto index = m_friendsList->currentIndex();
+  if (index.isValid()) {
+      m_presenter->removeFriend(m_friendsModel->getUserId(index.row()));
+  }
 }

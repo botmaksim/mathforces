@@ -1,5 +1,3 @@
-#include "api_config.h"
-// Force rebuild
 #include "active_contest_tab.h"
 #include "math_highlighter.h"
 #include <QDebug>
@@ -8,12 +6,8 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPdfDocument>
 #include <QPdfView>
 #include <QPushButton>
@@ -23,6 +17,9 @@
 ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
                                    QWidget *parent)
     : QWidget(parent), m_token(token), m_role(role) {
+  
+  m_presenter = new ActiveContestPresenter(m_token, this);
+
   QHBoxLayout *mainL = new QHBoxLayout(this);
   mainL->setContentsMargins(4, 4, 4, 4);
   mainL->setSpacing(16);
@@ -85,6 +82,10 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
 
   connect(m_answer, &QTextEdit::textChanged, [this]() {
     m_compileTimer->start(1000); // 1s debounce
+    if (m_tasks->currentItem() && !m_isLoadingDraft) {
+        int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
+        m_presenter->saveDraft(id, m_answer->toPlainText());
+    }
   });
   connect(m_compileTimer, &QTimer::timeout,
           [this]() { compileRealtime(m_answer->toPlainText()); });
@@ -124,116 +125,28 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
       m_btnShowEditorial->show();
     else
       m_btnShowEditorial->hide();
+    
+    m_isLoadingDraft = true;
+    m_answer->setText(m_presenter->loadDraft(id));
+    m_isLoadingDraft = false;
+    
     loadSubmissions(id);
   });
+  
   connect(btnRefreshSubs, &QPushButton::clicked, [this]() {
     if (m_tasks->currentItem()) {
       loadSubmissions(m_tasks->currentItem()->data(Qt::UserRole).toInt());
     }
   });
+  
   connect(btnPdfTask, &QPushButton::clicked, this,
           [this]() { compileAndShowPdf(m_desc->text()); });
   connect(btnPreviewAnswer, &QPushButton::clicked, this,
           [this]() { compileAndShowPdf(m_answer->toPlainText()); });
   connect(btnSub, &QPushButton::clicked, this, &ActiveContestTab::submit);
-}
-
-void ActiveContestTab::compileRealtime(const QString &typstCode) {
-  if (typstCode.isEmpty()) {
-    m_pdfDoc->close();
-    return;
-  }
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["code"] = typstCode;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QByteArray pdfData = r->readAll();
-
-      // Delete old temporary file if it exists, to not leak files
-      if (m_pdfTempFile) {
-        m_pdfTempFile->deleteLater();
-      }
-      m_pdfTempFile = new QTemporaryFile(this);
-      if (m_pdfTempFile->open()) {
-        m_pdfTempFile->write(pdfData);
-        m_pdfTempFile->flush();
-        m_pdfDoc->load(m_pdfTempFile->fileName());
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
-}
-
-void ActiveContestTab::compileAndShowPdf(const QString &typstCode) {
-  if (typstCode.isEmpty())
-    return;
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["code"] = typstCode;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QByteArray pdfData = r->readAll();
-
-      QTemporaryFile *tempFile = new QTemporaryFile(this);
-      if (tempFile->open()) {
-        tempFile->write(pdfData);
-        tempFile->flush();
-
-        QDialog *pdfDialog = new QDialog(this);
-        pdfDialog->setWindowTitle("PDF Предпросмотр");
-        pdfDialog->resize(800, 600);
-        QVBoxLayout *layout = new QVBoxLayout(pdfDialog);
-
-        QPdfDocument *doc = new QPdfDocument(pdfDialog);
-        doc->load(tempFile->fileName());
-
-        QPdfView *view = new QPdfView(pdfDialog);
-        view->setDocument(doc);
-        view->setPageMode(QPdfView::PageMode::MultiPage);
-
-        layout->addWidget(view);
-        pdfDialog->exec();
-      }
-    } else {
-      QString errText = r->readAll();
-      QMessageBox::warning(this, "Ошибка",
-                           "Не удалось скомпилировать PDF. Ошибка: " +
-                               r->errorString() + "\n" + errText);
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
-}
-
-void ActiveContestTab::loadContest(int contestId, const QString &) {
-  qDebug() << "Client: Loading contest tasks for ID:" << contestId;
-  m_contestId = contestId;
-  m_tasks->clear();
-  m_taskMap.clear();
-  m_answer->clear();
-  m_btnAllSubmissions->setEnabled(false);
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkReply *r = m->get(QNetworkRequest(
-      QUrl(QString(ApiConfig::baseUrl + "/api/tasks?contest_id=%1")
-               .arg(contestId))));
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Fetched tasks successfully";
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
+  
+  // Presenter hooks
+  connect(m_presenter, &ActiveContestPresenter::tasksLoaded, this, [this](const QJsonArray& arr){
       for (auto v : arr) {
         QJsonObject o = v.toObject();
         int id = o["id"].toInt();
@@ -244,45 +157,97 @@ void ActiveContestTab::loadContest(int contestId, const QString &) {
         item->setData(Qt::UserRole, id);
         m_tasks->addItem(item);
       }
-    } else {
-      qDebug() << "Client Error fetching tasks:" << r->errorString();
-    }
-    r->deleteLater();
-    m->deleteLater();
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::submissionSuccessful, this, [this](){
+      QMessageBox::information(this, "Ок", "Отправлено на проверку ИИ!");
+      m_answer->clear();
+      if (m_tasks->currentItem()) {
+          int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
+          m_presenter->saveDraft(id, ""); // clear draft
+          loadSubmissions(id);
+      }
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::mySubmissionsLoaded, this, [this](const QJsonArray& arr){
+      m_submissionsTable->setRowCount(arr.size());
+      bool hasSolved = false;
+      for (int i = 0; i < arr.size(); ++i) {
+        QJsonObject o = arr[i].toObject();
+        int score = o["score"].toInt();
+        m_submissionsTable->setItem(i, 0, new QTableWidgetItem(QString::number(score)));
+        m_submissionsTable->setItem(i, 1, new QTableWidgetItem(o["feedback"].toString()));
+        m_submissionsTable->setItem(i, 2, new QTableWidgetItem(o["answer"].toString()));
+        m_submissionsTable->setItem(i, 3, new QTableWidgetItem(o["status"].toString()));
+        if (score >= 100) hasSolved = true;
+      }
+      if (m_role == "admin" || m_role == "superadmin") hasSolved = true;
+      m_btnAllSubmissions->setEnabled(hasSolved);
+  });
+  
+  // allSubmissionsLoaded is hooked locally inside showAllSubmissions to a temporary table
+  
+  connect(m_presenter, &ActiveContestPresenter::errorOccurred, this, [this](const QString& err){
+      QMessageBox::warning(this, "Ошибка", "Ошибка со стороны сервера: " + err);
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::typstCompiled, this, [this](const QByteArray& pdfData){
+      QTemporaryFile *tempFile = new QTemporaryFile(this);
+      if (tempFile->open()) {
+        tempFile->write(pdfData);
+        tempFile->flush();
+        QDialog *pdfDialog = new QDialog(this);
+        pdfDialog->setWindowTitle("PDF Предпросмотр");
+        pdfDialog->resize(800, 600);
+        QVBoxLayout *layout = new QVBoxLayout(pdfDialog);
+        QPdfDocument *doc = new QPdfDocument(pdfDialog);
+        doc->load(tempFile->fileName());
+        QPdfView *view = new QPdfView(pdfDialog);
+        view->setDocument(doc);
+        view->setPageMode(QPdfView::PageMode::MultiPage);
+        layout->addWidget(view);
+        pdfDialog->exec();
+      }
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::realtimeTypstCompiled, this, [this](const QByteArray& pdfData){
+      if (m_pdfTempFile) m_pdfTempFile->deleteLater();
+      m_pdfTempFile = new QTemporaryFile(this);
+      if (m_pdfTempFile->open()) {
+        m_pdfTempFile->write(pdfData);
+        m_pdfTempFile->flush();
+        m_pdfDoc->load(m_pdfTempFile->fileName());
+      }
   });
 }
 
-void ActiveContestTab::submit() {
-  if (!m_tasks->currentItem() || m_answer->toPlainText().isEmpty()) {
-    qDebug() << "Client: Submit failed. Task not selected or answer is empty.";
+void ActiveContestTab::compileRealtime(const QString &typstCode) {
+  if (typstCode.isEmpty()) {
+    m_pdfDoc->close();
     return;
   }
+  m_presenter->compileRealtime(typstCode);
+}
+
+void ActiveContestTab::compileAndShowPdf(const QString &typstCode) {
+  if (typstCode.isEmpty()) return;
+  m_presenter->compileTypst(typstCode);
+}
+
+void ActiveContestTab::loadContest(int contestId, const QString &) {
+  m_contestId = contestId;
+  m_tasks->clear();
+  m_taskMap.clear();
+  m_editorialMap.clear();
+  m_answer->clear();
+  m_btnAllSubmissions->setEnabled(false);
+  m_presenter->loadTasks(contestId);
+}
+
+void ActiveContestTab::submit() {
+  if (!m_tasks->currentItem() || m_answer->toPlainText().isEmpty()) return;
   int tId = m_tasks->currentItem()->data(Qt::UserRole).toInt();
-  qDebug() << "Client: Submitting answer for task ID:" << tId;
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/submit"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["task_id"] = tId;
-  j["answer"] = m_answer->toPlainText();
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m, tId]() {
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Submission successful";
-      QMessageBox::information(this, "Ок", "Отправлено на проверку ИИ!");
-      m_answer->clear();
-      loadSubmissions(tId); // Reload submissions
-    } else {
-      QString errText = r->readAll();
-      qDebug() << "Client Error in submission:" << r->errorString() << errText;
-      QMessageBox::warning(this, "Ошибка",
-                           "Ошибка со стороны сервера: " + r->errorString() +
-                               "\n" + errText);
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->submitAnswer(tId, m_answer->toPlainText());
 }
 
 void ActiveContestTab::showAllSubmissions() {
@@ -303,31 +268,18 @@ void ActiveContestTab::showAllSubmissions() {
   table->setEditTriggers(QAbstractItemView::NoEditTriggers);
   l->addWidget(table);
 
-  QNetworkAccessManager *m = new QNetworkAccessManager(&dlg);
-  QNetworkRequest req(
-      QUrl(QString(ApiConfig::baseUrl + "/api/submissions/all?task_id=%1")
-               .arg(tId)));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [table, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
+  auto conn = connect(m_presenter, &ActiveContestPresenter::allSubmissionsLoaded, [&dlg, table](const QJsonArray& arr){
       table->setRowCount(arr.size());
       for (int i = 0; i < arr.size(); ++i) {
         QJsonObject o = arr[i].toObject();
-        QTableWidgetItem *idItem =
-            new QTableWidgetItem(QString::number(o["id"].toInt()));
-        table->setItem(i, 0, idItem);
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
         table->setItem(i, 1, new QTableWidgetItem(o["username"].toString()));
-        table->setItem(
-            i, 2, new QTableWidgetItem(QString::number(o["score"].toInt())));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(o["score"].toInt())));
         table->setItem(i, 3, new QTableWidgetItem(o["answer_text"].toString()));
       }
-    }
-    r->deleteLater();
-    m->deleteLater();
   });
+
+  m_presenter->loadAllSubmissions(tId);
 
   QPushButton *hackBtn = new QPushButton("Взломать выбранное", &dlg);
   l->addWidget(hackBtn);
@@ -347,68 +299,24 @@ void ActiveContestTab::showAllSubmissions() {
     hl->addWidget(hackText);
     hl->addWidget(sendBtn);
 
-    connect(sendBtn, &QPushButton::clicked,
-            [this, &hackDlg, subId, hackText]() {
-              QNetworkAccessManager *hm = new QNetworkAccessManager(&hackDlg);
-              QNetworkRequest hreq(QUrl(ApiConfig::baseUrl + "/api/hacks"));
-              hreq.setHeader(QNetworkRequest::ContentTypeHeader,
-                             "application/json");
-              hreq.setRawHeader("Authorization", m_token.toUtf8());
-              QJsonObject hj;
-              hj["submission_id"] = subId;
-              hj["hack_text"] = hackText->toPlainText();
-              QNetworkReply *hr = hm->post(hreq, QJsonDocument(hj).toJson());
-              connect(hr, &QNetworkReply::finished, [&hackDlg, hr, hm]() {
-                if (hr->error() == QNetworkReply::NoError) {
-                  QMessageBox::information(
-                      &hackDlg, "Ок", "Взлом отправлен, ожидайте вердикта ИИ!");
-                  hackDlg.accept();
-                } else {
-                  QMessageBox::warning(&hackDlg, "Ошибка",
-                                       "Ошибка отправки взлома");
-                }
-                hr->deleteLater();
-                hm->deleteLater();
-              });
-            });
+    auto hConn = std::make_shared<QMetaObject::Connection>();
+    *hConn = connect(m_presenter, &ActiveContestPresenter::hackSuccessful, [&hackDlg, hConn](){
+        QMessageBox::information(&hackDlg, "Ок", "Взлом отправлен, ожидайте вердикта ИИ!");
+        QObject::disconnect(*hConn);
+        hackDlg.accept();
+    });
+
+    connect(sendBtn, &QPushButton::clicked, [this, subId, hackText]() {
+        m_presenter->submitHack(subId, hackText->toPlainText());
+    });
     hackDlg.exec();
   });
 
   dlg.exec();
+  disconnect(conn);
 }
 
 void ActiveContestTab::loadSubmissions(int taskId) {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
   m_btnAllSubmissions->setEnabled(m_role == "admin" || m_role == "superadmin");
-  QNetworkRequest req(QUrl(
-      QString(ApiConfig::baseUrl + "/api/submissions?task_id=%1").arg(taskId)));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      m_submissionsTable->setRowCount(arr.size());
-      bool hasSolved = false;
-      for (int i = 0; i < arr.size(); ++i) {
-        QJsonObject o = arr[i].toObject();
-        int score = o["score"].toInt();
-        m_submissionsTable->setItem(
-            i, 0, new QTableWidgetItem(QString::number(score)));
-        m_submissionsTable->setItem(
-            i, 1, new QTableWidgetItem(o["feedback"].toString()));
-        m_submissionsTable->setItem(
-            i, 2, new QTableWidgetItem(o["answer"].toString()));
-        m_submissionsTable->setItem(
-            i, 3, new QTableWidgetItem(o["status"].toString()));
-        if (score >= 100)
-          hasSolved = true;
-      }
-      if (m_role == "admin" || m_role == "superadmin")
-        hasSolved = true;
-      m_btnAllSubmissions->setEnabled(hasSolved);
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->loadMySubmissions(taskId);
 }

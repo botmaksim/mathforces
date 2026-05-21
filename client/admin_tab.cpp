@@ -1,5 +1,4 @@
 #include "admin_tab.h"
-#include "api_config.h"
 #include "math_highlighter.h"
 #include <QCheckBox>
 #include <QDateTimeEdit>
@@ -7,19 +6,18 @@
 #include <QDoubleSpinBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QDialog>
 
 AdminTab::AdminTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
+    
+  m_presenter = new AdminPresenter(m_token, this);
+  
   QVBoxLayout *mainVert = new QVBoxLayout(this);
   mainVert->setContentsMargins(4, 4, 4, 4);
   mainVert->setSpacing(14);
@@ -157,27 +155,35 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   ML->addWidget(g1);
   ML->addWidget(g2);
   ML->addWidget(g3);
-
-  connect(m_btnCreateDraft, &QPushButton::clicked, this,
-          &AdminTab::createDraftContest);
-  connect(b1, &QPushButton::clicked, this, &AdminTab::updateContest);
-  connect(b2, &QPushButton::clicked, this, &AdminTab::createTask);
-  connect(m_selectContest, QOverload<int>::of(&QComboBox::currentIndexChanged),
-          this, &AdminTab::onContestSelectionChanged);
-
-  connect(btnPreviewEditorial, &QPushButton::clicked, [this]() {
-    QString typstCode = m_tEditorial->toPlainText();
-    if (typstCode.isEmpty())
-      return;
-    QNetworkAccessManager *m = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QJsonObject j;
-    j["code"] = typstCode;
-    QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-    connect(r, &QNetworkReply::finished, [this, r, m]() {
-      if (r->error() == QNetworkReply::NoError) {
-        QByteArray pdfData = r->readAll();
+  
+  connect(m_presenter, &AdminPresenter::myContestsLoaded, this, [this](const QJsonArray& arr){
+      m_selectContest->clear();
+      m_currentContestsArray = arr;
+      for (auto v : m_currentContestsArray) {
+        QJsonObject o = v.toObject();
+        m_selectContest->addItem(QString("%1 (ID: %2)").arg(o["title"].toString()).arg(o["id"].toInt()), o["id"].toInt());
+      }
+  });
+  
+  connect(m_presenter, &AdminPresenter::draftCreated, this, [this](){
+      QMessageBox::information(this, "Ок", "Черновик контеста создан");
+      loadMyContests();
+  });
+  
+  connect(m_presenter, &AdminPresenter::contestUpdated, this, [this](){
+      QMessageBox::information(this, "Ок", "Параметры сохранены");
+      loadMyContests();
+  });
+  
+  connect(m_presenter, &AdminPresenter::taskCreated, this, [this](){
+      QMessageBox::information(this, "Ок", "Задача создана!");
+  });
+  
+  connect(m_presenter, &AdminPresenter::errorOccurred, this, [this](const QString& err){
+      QMessageBox::warning(this, "Ошибка", "Ошибка: " + err);
+  });
+  
+  connect(m_presenter, &AdminPresenter::typstCompiled, this, [this](const QByteArray& pdfData){
         QTemporaryFile *tf = new QTemporaryFile(this);
         if (tf->open()) {
           tf->write(pdfData);
@@ -193,15 +199,28 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
           l->addWidget(view);
           d->exec();
         }
-      } else {
-        QString errText = r->readAll();
-        QMessageBox::warning(this, "Ошибка",
-                             "Не удалось скомпилировать PDF. Ошибка: " +
-                                 r->errorString() + "\n" + errText);
+  });
+  
+  connect(m_presenter, &AdminPresenter::realtimeTypstCompiled, this, [this](const QByteArray& pdfData){
+      if (m_pdfTempFile) m_pdfTempFile->deleteLater();
+      m_pdfTempFile = new QTemporaryFile(this);
+      if (m_pdfTempFile->open()) {
+        m_pdfTempFile->write(pdfData);
+        m_pdfTempFile->flush();
+        m_pdfDoc->load(m_pdfTempFile->fileName());
       }
-      r->deleteLater();
-      m->deleteLater();
-    });
+  });
+
+  connect(m_btnCreateDraft, &QPushButton::clicked, this, &AdminTab::createDraftContest);
+  connect(b1, &QPushButton::clicked, this, &AdminTab::updateContest);
+  connect(b2, &QPushButton::clicked, this, &AdminTab::createTask);
+  connect(m_selectContest, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &AdminTab::onContestSelectionChanged);
+
+  connect(btnPreviewEditorial, &QPushButton::clicked, [this]() {
+    QString typstCode = m_tEditorial->toPlainText();
+    if (typstCode.isEmpty()) return;
+    m_presenter->compileTypst(typstCode);
   });
 
   connect(m_tType, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -211,25 +230,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
 }
 
 void AdminTab::loadMyContests() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/my_contests"));
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QNetworkReply *r = m->get(req);
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      m_selectContest->clear();
-      m_currentContestsArray = QJsonDocument::fromJson(r->readAll()).array();
-      for (auto v : m_currentContestsArray) {
-        QJsonObject o = v.toObject();
-        m_selectContest->addItem(QString("%1 (ID: %2)")
-                                     .arg(o["title"].toString())
-                                     .arg(o["id"].toInt()),
-                                 o["id"].toInt());
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+    m_presenter->loadMyContests();
 }
 
 void AdminTab::onContestSelectionChanged(int index) {
@@ -245,52 +246,14 @@ void AdminTab::onContestSelectionChanged(int index) {
 }
 
 void AdminTab::createDraftContest() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j; // Empty request for draft create
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QMessageBox::information(this, "Ок", "Черновик контеста создан");
-      loadMyContests();
-    } else {
-      QMessageBox::warning(this, "Ошибка", "Не удалось создать контест");
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+    m_presenter->createDraftContest();
 }
 
 void AdminTab::updateContest() {
   int cIdx = m_selectContest->currentIndex();
-  if (cIdx < 0)
-    return;
+  if (cIdx < 0) return;
   int cId = m_selectContest->itemData(cIdx).toInt();
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/contest"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["id"] = cId;
-  j["title"] = m_cTitle->text();
-  j["start"] = m_cStart->dateTime().toString("yyyy-MM-dd HH:mm:ss");
-  j["duration_hours"] = m_cDuration->value();
-  j["description"] = m_cDesc->toPlainText();
-  j["is_published"] = m_cIsPublished->isChecked();
-  QNetworkReply *r = m->put(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QMessageBox::information(this, "Ок", "Параметры сохранены");
-      loadMyContests();
-    } else {
-      QMessageBox::warning(this, "Ошибка", "Ошибка сохранения");
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->updateContest(cId, m_cTitle->text(), m_cStart->dateTime().toString("yyyy-MM-dd HH:mm:ss"), m_cDuration->value(), m_cDesc->toPlainText(), m_cIsPublished->isChecked());
 }
 
 void AdminTab::compileRealtime(const QString &typstCode) {
@@ -298,32 +261,7 @@ void AdminTab::compileRealtime(const QString &typstCode) {
     m_pdfDoc->close();
     return;
   }
-
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/compile_typst"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-  QJsonObject j;
-  j["code"] = typstCode;
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QByteArray pdfData = r->readAll();
-
-      if (m_pdfTempFile) {
-        m_pdfTempFile->deleteLater();
-      }
-      m_pdfTempFile = new QTemporaryFile(this);
-      if (m_pdfTempFile->open()) {
-        m_pdfTempFile->write(pdfData);
-        m_pdfTempFile->flush();
-        m_pdfDoc->load(m_pdfTempFile->fileName());
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->compileRealtime(typstCode);
 }
 
 void AdminTab::onTaskTypeChanged(int index) {
@@ -345,46 +283,6 @@ void AdminTab::createTask() {
   if (cIdx < 0)
     return;
   int cId = m_selectContest->itemData(cIdx).toInt();
-
-  qDebug() << "Client: Creating task:" << m_tTitle->text()
-           << "for contest ID:" << cId;
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/admin/task"));
-  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-  req.setRawHeader("Authorization", m_token.toUtf8());
-
-  QJsonObject j;
-  j["contest_id"] = cId;
-  j["title"] = m_tTitle->text();
-  j["max_score"] = m_tScore->text().toInt();
-  j["max_submissions"] = m_tMaxSubmissions->text().toInt();
-  j["description"] = m_tDesc->toPlainText();
-
-  QString typeChoice = m_tType->currentData().toString();
-  j["task_type"] = typeChoice;
-
-  if (typeChoice == "answer_only") {
-    j["correct_answer"] = m_tCorrectAnswer->text();
-  } else {
-    j["editorial"] = m_tEditorial->toPlainText();
-    j["send_editorial_to_ai"] = m_tSendEditorialToAi->isChecked();
-    j["ai_comment"] = m_tAiComment->toPlainText();
-  }
-
-  j["tags"] = m_tTags->text();
-  j["difficulty"] = m_tDifficulty->text().toInt();
-
-  QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      qDebug() << "Client: Task created successfully";
-      QMessageBox::information(this, "Ок", "Задача создана!");
-    } else {
-      qDebug() << "Client Error: Failed to create task:" << r->errorString()
-               << "-" << r->readAll();
-      QMessageBox::warning(this, "Ошибка", "Ошибка: " + r->errorString());
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  
+  m_presenter->createTask(cId, m_tTitle->text(), m_tScore->text().toInt(), m_tMaxSubmissions->text().toInt(), m_tDesc->toPlainText(), m_tType->currentData().toString(), m_tCorrectAnswer->text(), m_tEditorial->toPlainText(), m_tSendEditorialToAi->isChecked(), m_tAiComment->toPlainText(), m_tTags->text(), m_tDifficulty->text().toInt());
 }

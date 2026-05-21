@@ -8,6 +8,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QWidget>
+#include "mvc/ActiveContestPresenter.h"
 
 class ActiveContestTab : public QWidget {
   Q_OBJECT
@@ -39,4 +40,7 @@ private:
   QPdfView *m_pdfView;
   QPdfDocument *m_pdfDoc;
   QTemporaryFile *m_pdfTempFile;
+  
+  ActiveContestPresenter* m_presenter;
+  bool m_isLoadingDraft = false;
 };

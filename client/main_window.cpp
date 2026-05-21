@@ -107,24 +107,9 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   connect(m_contestsTab, &ContestsTab::contestSelected, this,
           &MainWindow::openContest);
   connect(
-      m_contestsTab, &ContestsTab::startVirtualParticipation, this,
+      m_contestsTab, &ContestsTab::virtualReadyToOpen, this,
       [this](int cid) {
-        QNetworkAccessManager *m = new QNetworkAccessManager(this);
-        QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/contests/virtual"));
-        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        req.setRawHeader("Authorization", m_token.toUtf8());
-        QJsonObject j;
-        j["contest_id"] = cid;
-        QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
-        connect(r, &QNetworkReply::finished, [this, r, m, cid]() {
-          if (r->error() == QNetworkReply::NoError) {
-            openContest(cid, "Виртуальное участие");
-          } else {
-            qDebug() << "Failed to start virtual participation";
-          }
-          r->deleteLater();
-          m->deleteLater();
-        });
+          openContest(cid, "Виртуальное участие");
       });
 }
 

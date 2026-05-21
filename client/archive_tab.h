@@ -3,17 +3,14 @@
 
 #include <QComboBox>
 #include <QHBoxLayout>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QPushButton>
-#include <QTableWidget>
+#include <QTableView>
 #include <QVBoxLayout>
 #include <QWidget>
+#include "mvc/ArchiveModel.h"
+#include "mvc/ArchivePresenter.h"
 
 class ArchiveTab : public QWidget {
   Q_OBJECT
@@ -26,7 +23,10 @@ private slots:
 
 private:
   QString m_token;
-  QTableWidget *m_table;
+  QTableView *m_tableView;
+  ArchiveModel *m_model;
+  ArchivePresenter *m_presenter;
+  
   QLineEdit *m_filterTags;
   QLineEdit *m_filterMinDiff;
   QLineEdit *m_filterMaxDiff;

@@ -2,10 +2,12 @@
 #define FRIENDS_TAB_H
 
 #include <QLineEdit>
-#include <QListWidget>
+#include <QListView>
 #include <QPushButton>
 #include <QString>
 #include <QWidget>
+#include "mvc/UsersListModel.h"
+#include "mvc/FriendsPresenter.h"
 
 class FriendsTab : public QWidget {
   Q_OBJECT
@@ -16,7 +18,8 @@ public:
 private slots:
   void searchUsers();
   void loadFriends();
-  void onUserClicked(class QListWidgetItem *item);
+  void onSearchUserDoubleClicked(const QModelIndex& index);
+  void onFriendDoubleClicked(const QModelIndex& index);
   void addFriend();
   void removeFriend();
 
@@ -26,12 +29,16 @@ private:
 
   QLineEdit *m_searchEdit;
   QPushButton *m_btnSearch;
-  QListWidget *m_searchResults;
+  QListView *m_searchResults;
+  UsersListModel *m_searchModel;
 
   QPushButton *m_btnAddFriend;
 
-  QListWidget *m_friendsList;
+  QListView *m_friendsList;
+  UsersListModel *m_friendsModel;
   QPushButton *m_btnRemoveFriend;
+
+  FriendsPresenter *m_presenter;
 };
 
 #endif // FRIENDS_TAB_H

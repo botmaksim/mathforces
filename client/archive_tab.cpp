@@ -1,5 +1,4 @@
 #include "archive_tab.h"
-#include "api_config.h"
 #include <QHeaderView>
 
 ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
@@ -26,65 +25,37 @@ ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
   filterLayout->addWidget(m_filterMaxDiff);
   filterLayout->addWidget(m_btnFilter);
 
-  m_table = new QTableWidget(0, 4, this);
-  m_table->setHorizontalHeaderLabels({"ID", "Название", "Теги", "Сложность"});
-  m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-  m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_table->setAlternatingRowColors(true);
+  m_tableView = new QTableView(this);
+  m_model = new ArchiveModel(this);
+  m_presenter = new ArchivePresenter(m_model, m_token, this);
+  
+  m_tableView->setModel(m_model);
+  m_tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+  m_tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_tableView->setAlternatingRowColors(true);
 
   mainLayout->addLayout(filterLayout);
-  mainLayout->addWidget(m_table);
+  mainLayout->addWidget(m_tableView);
 
   connect(m_btnFilter, &QPushButton::clicked, this, &ArchiveTab::applyFilter);
-  connect(m_table, &QTableWidget::cellDoubleClicked, [this](int row, int col) {
-    openTask(m_table->item(row, 0)->text().toInt());
+  connect(m_presenter, &ArchivePresenter::errorOccurred, this, [](const QString& err){
+      qDebug() << "Archive error:" << err;
+  });
+  connect(m_tableView, &QTableView::doubleClicked, [this](const QModelIndex& index) {
+      int taskId = m_model->getTaskId(index.row());
+      if (taskId > 0) openTask(taskId);
   });
 }
 
 void ArchiveTab::loadTasks() { applyFilter(); }
 
 void ArchiveTab::applyFilter() {
-  QNetworkAccessManager *m = new QNetworkAccessManager(this);
-  QString urlStr = ApiConfig::baseUrl + "/api/archive/tasks?";
-
-  if (!m_filterTags->text().isEmpty()) {
-    urlStr += "tags=" + m_filterTags->text() + "&";
-  }
-  if (!m_filterMinDiff->text().isEmpty()) {
-    urlStr += "min_diff=" + m_filterMinDiff->text() + "&";
-  }
-  if (!m_filterMaxDiff->text().isEmpty()) {
-    urlStr += "max_diff=" + m_filterMaxDiff->text() + "&";
-  }
-
-  QUrl url(urlStr);
-  QNetworkRequest req(url);
-  QNetworkReply *r = m->get(req);
-
-  connect(r, &QNetworkReply::finished, [this, r, m]() {
-    if (r->error() == QNetworkReply::NoError) {
-      QJsonArray arr = QJsonDocument::fromJson(r->readAll()).array();
-      m_table->setRowCount(arr.size());
-      for (int i = 0; i < arr.size(); ++i) {
-        QJsonObject o = arr[i].toObject();
-        m_table->setItem(
-            i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
-        m_table->setItem(i, 1, new QTableWidgetItem(o["title"].toString()));
-        m_table->setItem(i, 2, new QTableWidgetItem(o["tags"].toString()));
-        m_table->setItem(
-            i, 3,
-            new QTableWidgetItem(QString::number(o["difficulty"].toInt())));
-      }
-    }
-    r->deleteLater();
-    m->deleteLater();
-  });
+  m_presenter->loadTasks(m_filterTags->text(), m_filterMinDiff->text(), m_filterMaxDiff->text());
 }
 
 void ArchiveTab::openTask(int taskId) {
   // В данном прототипе покажем ID задачи при двойном клике
-  // Полноценное открытие задачи похоже на ActiveContestTab, но вне контеста.
   QMessageBox::information(this, "Задача",
                            "Открытие задачи ID: " + QString::number(taskId));
 }

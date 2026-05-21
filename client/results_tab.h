@@ -1,7 +1,9 @@
 #pragma once
-#include <QTableWidget>
+#include <QTableView>
 #include <QTimer>
 #include <QWidget>
+#include "mvc/ResultsModel.h"
+#include "mvc/ResultsPresenter.h"
 
 class ResultsTab : public QWidget {
   Q_OBJECT
@@ -14,7 +16,10 @@ public:
 private:
   QString m_token;
   QString m_myRole;
-  QTableWidget *m_table;
+  QTableView *m_tableView;
+  ResultsModel *m_model;
+  ResultsPresenter *m_presenter;
+  
   int m_currentContest = -1;
   QTimer *m_timer;
 };

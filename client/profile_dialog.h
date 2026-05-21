@@ -9,6 +9,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
+#include "mvc/ProfilePresenter.h"
 
 class ProfileDialog : public QDialog {
   Q_OBJECT
@@ -40,6 +41,8 @@ private:
 
   QTextEdit *m_txtNewPost;
   QPushButton *m_btnPost;
+
+  ProfilePresenter *m_presenter;
 
   void fetchMyId();
 };

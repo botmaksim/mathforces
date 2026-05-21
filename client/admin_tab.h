@@ -12,6 +12,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QWidget>
+#include "mvc/AdminPresenter.h"
 
 class AdminTab : public QWidget {
   Q_OBJECT
@@ -52,4 +53,6 @@ private:
   QPdfView *m_pdfView;
   QPdfDocument *m_pdfDoc;
   QTemporaryFile *m_pdfTempFile;
+  
+  AdminPresenter* m_presenter;
 };

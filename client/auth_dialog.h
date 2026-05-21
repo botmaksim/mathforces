@@ -3,6 +3,7 @@
 #include <QLineEdit>
 #include <QStackedWidget>
 #include <QString>
+#include "mvc/AuthPresenter.h"
 
 class AuthDialog : public QDialog {
   Q_OBJECT
@@ -33,4 +34,6 @@ private:
 
   QString m_token;
   QString m_role;
+  
+  AuthPresenter *m_presenter;
 };
