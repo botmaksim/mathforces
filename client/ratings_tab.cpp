@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -17,14 +18,24 @@ RatingsTab::RatingsTab(const QString &token, const QString &myRole,
                        QWidget *parent)
     : QWidget(parent), m_token(token), m_myRole(myRole) {
   QVBoxLayout *l = new QVBoxLayout(this);
-  QPushButton *btn = new QPushButton("Обновить", this);
+  l->setContentsMargins(4, 4, 4, 4);
+  l->setSpacing(14);
+  QLabel *title = new QLabel("Глобальный рейтинг", this);
+  title->setObjectName("sectionTitle");
+  QLabel *hint = new QLabel("Рейтинг обновляется автоматически. Двойной клик открывает профиль участника.", this);
+  hint->setObjectName("mutedLabel");
+  hint->setWordWrap(true);
+  QPushButton *btn = new QPushButton("Обновить рейтинг", this);
   m_table = new QTableWidget(0, 4, this);
   m_table->setHorizontalHeaderLabels(
       {"Место", "Пользователь", "Имя", "Рейтинг"});
   m_table->horizontalHeader()->setStretchLastSection(true);
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  l->addWidget(btn);
+  m_table->setAlternatingRowColors(true);
+  l->addWidget(title);
+  l->addWidget(hint);
+  l->addWidget(btn, 0, Qt::AlignLeft);
   l->addWidget(m_table);
 
   connect(btn, &QPushButton::clicked, this, &RatingsTab::loadRatings);

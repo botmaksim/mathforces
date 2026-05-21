@@ -2,6 +2,7 @@
 #include "api_config.h"
 #include <QDebug>
 #include <QDesktopServices>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonDocument>
@@ -18,39 +19,74 @@
 #include <QVBoxLayout>
 
 AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
-  setWindowTitle("Авторизация Mathforces");
-  setMinimumWidth(300);
+  setWindowTitle("MathForces - вход");
+  setMinimumSize(520, 560);
 
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
+  mainLayout->setContentsMargins(28, 28, 28, 28);
+  mainLayout->setSpacing(16);
+
+  QLabel *brand = new QLabel("MathForces", this);
+  brand->setObjectName("authLogo");
+  brand->setAlignment(Qt::AlignCenter);
+  QLabel *subtitle = new QLabel(
+      "Войди, чтобы решать задачи, участвовать в контестах и смотреть рейтинг",
+      this);
+  subtitle->setObjectName("authSubtitle");
+  subtitle->setWordWrap(true);
+  subtitle->setAlignment(Qt::AlignCenter);
+
+  mainLayout->addWidget(brand);
+  mainLayout->addWidget(subtitle);
+
   m_stackedWidget = new QStackedWidget(this);
-  mainLayout->addWidget(m_stackedWidget);
+  mainLayout->addWidget(m_stackedWidget, 1);
 
   // --- Login Widget ---
-  QWidget *loginWidget = new QWidget(this);
+  QFrame *loginWidget = new QFrame(this);
+  loginWidget->setObjectName("authCard");
   QVBoxLayout *loginLayout = new QVBoxLayout(loginWidget);
+  loginLayout->setContentsMargins(28, 28, 28, 28);
+  loginLayout->setSpacing(12);
+
+  QLabel *loginTitle = new QLabel("С возвращением", loginWidget);
+  loginTitle->setObjectName("sectionTitle");
+  QLabel *loginHint = new QLabel("Введите email и пароль от аккаунта.", loginWidget);
+  loginHint->setObjectName("mutedLabel");
+
   m_emailLogin = new QLineEdit(this);
   m_emailLogin->setPlaceholderText("Email");
   m_passLogin = new QLineEdit(this);
   m_passLogin->setEchoMode(QLineEdit::Password);
   m_passLogin->setPlaceholderText("Пароль");
 
-  QPushButton *btnLog = new QPushButton("Вход", this);
+  QPushButton *btnLog = new QPushButton("Войти", this);
   QPushButton *btnGoogle = new QPushButton("Войти через Google", this);
-  QPushButton *btnGoToReg =
-      new QPushButton("Нет аккаунта? Зарегистрируйтесь", this);
+  QPushButton *btnGoToReg = new QPushButton("Нет аккаунта? Зарегистрироваться", this);
   btnGoToReg->setFlat(true);
 
-  loginLayout->addWidget(new QLabel("Вход в систему", this));
+  loginLayout->addWidget(loginTitle);
+  loginLayout->addWidget(loginHint);
+  loginLayout->addSpacing(8);
   loginLayout->addWidget(m_emailLogin);
   loginLayout->addWidget(m_passLogin);
   loginLayout->addWidget(btnLog);
   loginLayout->addWidget(btnGoogle);
-  loginLayout->addWidget(btnGoToReg);
   loginLayout->addStretch();
+  loginLayout->addWidget(btnGoToReg, 0, Qt::AlignCenter);
 
   // --- Register Widget ---
-  QWidget *regWidget = new QWidget(this);
+  QFrame *regWidget = new QFrame(this);
+  regWidget->setObjectName("authCard");
   QVBoxLayout *regLayout = new QVBoxLayout(regWidget);
+  regLayout->setContentsMargins(28, 28, 28, 28);
+  regLayout->setSpacing(12);
+
+  QLabel *regTitle = new QLabel("Создать аккаунт", regWidget);
+  regTitle->setObjectName("sectionTitle");
+  QLabel *regHint = new QLabel("Заполните данные, затем подтвердите email кодом.", regWidget);
+  regHint->setObjectName("mutedLabel");
+
   m_emailReg = new QLineEdit(this);
   m_emailReg->setPlaceholderText("Email (student@example.com)");
   m_usernameReg = new QLineEdit(this);
@@ -65,14 +101,16 @@ AuthDialog::AuthDialog(QWidget *parent) : QDialog(parent) {
   QPushButton *btnGoToLog = new QPushButton("Уже есть аккаунт? Войти", this);
   btnGoToLog->setFlat(true);
 
-  regLayout->addWidget(new QLabel("Регистрация", this));
+  regLayout->addWidget(regTitle);
+  regLayout->addWidget(regHint);
+  regLayout->addSpacing(8);
   regLayout->addWidget(m_emailReg);
   regLayout->addWidget(m_usernameReg);
   regLayout->addWidget(m_nameReg);
   regLayout->addWidget(m_passReg);
   regLayout->addWidget(btnReg);
-  regLayout->addWidget(btnGoToLog);
   regLayout->addStretch();
+  regLayout->addWidget(btnGoToLog, 0, Qt::AlignCenter);
 
   m_stackedWidget->addWidget(loginWidget);
   m_stackedWidget->addWidget(regWidget);

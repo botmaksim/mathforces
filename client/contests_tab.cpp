@@ -1,25 +1,40 @@
 #include "contests_tab.h"
 #include "api_config.h"
 #include <QDebug>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
 
 ContestsTab::ContestsTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
   QVBoxLayout *l = new QVBoxLayout(this);
+  l->setContentsMargins(4, 4, 4, 4);
+  l->setSpacing(14);
+
+  QLabel *title = new QLabel("Ближайшие контесты", this);
+  title->setObjectName("sectionTitle");
+  QLabel *hint = new QLabel("Дважды нажмите на контест, чтобы открыть задачи. Для тренировки выберите виртуальное участие.", this);
+  hint->setObjectName("mutedLabel");
+  hint->setWordWrap(true);
+
   QHBoxLayout *top = new QHBoxLayout();
-  QPushButton *btn = new QPushButton("Обновить", this);
-  QPushButton *btnVirtual = new QPushButton("Виртуальное участие", this);
+  top->setSpacing(10);
+  QPushButton *btn = new QPushButton("Обновить список", this);
+  QPushButton *btnVirtual = new QPushButton("Начать виртуально", this);
   top->addWidget(btn);
   top->addWidget(btnVirtual);
+  top->addStretch();
 
   m_list = new QListWidget(this);
+  l->addWidget(title);
+  l->addWidget(hint);
   l->addLayout(top);
   l->addWidget(m_list);
   connect(btn, &QPushButton::clicked, this, &ContestsTab::load);

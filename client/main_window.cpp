@@ -1,5 +1,4 @@
 #include "api_config.h"
-// Force rebuild step
 #include "active_contest_tab.h"
 #include "admin_tab.h"
 #include "archive_tab.h"
@@ -9,13 +8,77 @@
 #include "ratings_tab.h"
 #include "results_tab.h"
 #include "users_tab.h"
+#include <QDebug>
+#include <QFrame>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QSizePolicy>
+#include <QVBoxLayout>
+
+static QString readableRole(const QString &role) {
+  if (role == "superadmin")
+    return "Суперадмин";
+  if (role == "admin")
+    return "Администратор";
+  if (role == "moderator")
+    return "Модератор";
+  return "Участник";
+}
 
 MainWindow::MainWindow(const QString &token, const QString &role,
                        QWidget *parent)
     : QMainWindow(parent), m_token(token), m_role(role) {
-  setWindowTitle("Mathforces Client");
-  m_tabs = new QTabWidget(this);
-  setCentralWidget(m_tabs);
+  setWindowTitle("MathForces - математические контесты");
+  setMinimumSize(1100, 720);
+
+  QWidget *root = new QWidget(this);
+  root->setObjectName("mainShell");
+  QVBoxLayout *rootLayout = new QVBoxLayout(root);
+  rootLayout->setContentsMargins(24, 24, 24, 24);
+  rootLayout->setSpacing(16);
+
+  QFrame *topBar = new QFrame(root);
+  topBar->setObjectName("topBar");
+  QHBoxLayout *topLayout = new QHBoxLayout(topBar);
+  topLayout->setContentsMargins(22, 18, 22, 18);
+  topLayout->setSpacing(16);
+
+  QLabel *brandIcon = new QLabel(QStringLiteral("∑"), topBar);
+  brandIcon->setObjectName("brandIcon");
+  topLayout->addWidget(brandIcon, 0, Qt::AlignVCenter);
+
+  QVBoxLayout *titleLayout = new QVBoxLayout();
+  titleLayout->setContentsMargins(0, 0, 0, 0);
+  titleLayout->setSpacing(2);
+
+  QLabel *title = new QLabel("MathForces", topBar);
+  title->setObjectName("appTitle");
+  QLabel *subtitle = new QLabel(
+      "Тёплая платформа для математических контестов, решений и рейтингов",
+      topBar);
+  subtitle->setObjectName("appSubtitle");
+  titleLayout->addWidget(title);
+  titleLayout->addWidget(subtitle);
+  topLayout->addLayout(titleLayout, 1);
+
+  QLabel *roleBadge = new QLabel("Роль: " + readableRole(role), topBar);
+  roleBadge->setObjectName("roleBadge");
+  topLayout->addWidget(roleBadge, 0, Qt::AlignVCenter);
+
+  rootLayout->addWidget(topBar);
+
+  m_tabs = new QTabWidget(root);
+  m_tabs->setObjectName("mainTabs");
+  m_tabs->setDocumentMode(true);
+  m_tabs->setMovable(false);
+  rootLayout->addWidget(m_tabs, 1);
+
+  setCentralWidget(root);
 
   m_contestsTab = new ContestsTab(token, this);
   m_activeTab = new ActiveContestTab(token, role, this);
@@ -25,19 +88,15 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   m_archiveTab = new ArchiveTab(token, this);
 
   m_tabs->addTab(m_contestsTab, "Контесты");
-  m_tabs->addTab(m_activeTab, "Текущий Контест");
+  m_tabs->addTab(m_activeTab, "Текущий контест");
   m_tabs->addTab(m_resultsTab, "Результаты");
   m_tabs->addTab(m_friendsTab, "Сообщество");
   m_tabs->addTab(m_ratingsTab, "Рейтинг");
-  m_tabs->addTab(m_archiveTab, "Архив");
-
-  // Вкладка активного контеста пока скрыта (или просто недоступна),
-  // пока пользователь не войдет в контест. Для простоты оставим их все
-  // видимыми, но заполняются они при клике.
+  m_tabs->addTab(m_archiveTab, "Архив задач");
 
   if (role == "admin" || role == "superadmin") {
     m_adminTab = new AdminTab(token, this);
-    m_tabs->addTab(m_adminTab, "Создание и Управление");
+    m_tabs->addTab(m_adminTab, "Управление");
   }
 
   if (role == "superadmin" || role == "moderator") {
@@ -50,7 +109,6 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   connect(
       m_contestsTab, &ContestsTab::startVirtualParticipation, this,
       [this](int cid) {
-        // Here we could call API to register virtual participation
         QNetworkAccessManager *m = new QNetworkAccessManager(this);
         QNetworkRequest req(QUrl(ApiConfig::baseUrl + "/api/contests/virtual"));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -60,7 +118,7 @@ MainWindow::MainWindow(const QString &token, const QString &role,
         QNetworkReply *r = m->post(req, QJsonDocument(j).toJson());
         connect(r, &QNetworkReply::finished, [this, r, m, cid]() {
           if (r->error() == QNetworkReply::NoError) {
-            openContest(cid, "Virtual Participation");
+            openContest(cid, "Виртуальное участие");
           } else {
             qDebug() << "Failed to start virtual participation";
           }

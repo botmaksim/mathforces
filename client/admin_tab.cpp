@@ -21,19 +21,23 @@
 AdminTab::AdminTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
   QVBoxLayout *mainVert = new QVBoxLayout(this);
+  mainVert->setContentsMargins(4, 4, 4, 4);
+  mainVert->setSpacing(14);
 
   QHBoxLayout *topL = new QHBoxLayout();
-  topL->addWidget(new QLabel("Текущий 컨тест:"));
+  topL->setSpacing(10);
+  topL->addWidget(new QLabel("Текущий контест:"));
   m_selectContest = new QComboBox();
   topL->addWidget(m_selectContest);
-  m_btnCreateDraft = new QPushButton("Создать Новый (Черновик)");
+  m_btnCreateDraft = new QPushButton("Создать черновик");
   topL->addWidget(m_btnCreateDraft);
   mainVert->addLayout(topL);
 
   QHBoxLayout *ML = new QHBoxLayout();
+  ML->setSpacing(14);
   mainVert->addLayout(ML);
 
-  QGroupBox *g1 = new QGroupBox("Параметры Контеста");
+  QGroupBox *g1 = new QGroupBox("Параметры контеста");
   QVBoxLayout *l1 = new QVBoxLayout(g1);
   m_cTitle = new QLineEdit();
   m_cTitle->setPlaceholderText("Название");
@@ -53,7 +57,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
 
   m_cIsPublished = new QCheckBox("Опубликовать контест (сразу доступен)");
 
-  QPushButton *b1 = new QPushButton("Сохранить изменения");
+  QPushButton *b1 = new QPushButton("Сохранить контест");
   l1->addWidget(new QLabel("Название:"));
   l1->addWidget(m_cTitle);
   l1->addWidget(new QLabel("Начало:"));
@@ -65,7 +69,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   l1->addWidget(m_cIsPublished);
   l1->addWidget(b1);
 
-  QGroupBox *g2 = new QGroupBox("Новая Задача (в текущий контест)");
+  QGroupBox *g2 = new QGroupBox("Новая задача");
   QVBoxLayout *l2 = new QVBoxLayout(g2);
   m_tTitle = new QLineEdit();
   m_tTitle->setPlaceholderText("Название");
@@ -146,7 +150,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
     }
   });
 
-  QGroupBox *g3 = new QGroupBox("Предпросмотр Typst");
+  QGroupBox *g3 = new QGroupBox("Живой предпросмотр Typst");
   QVBoxLayout *l3 = new QVBoxLayout(g3);
   l3->addWidget(m_pdfView);
 

@@ -2,6 +2,7 @@
 #include "api_config.h"
 #include "profile_dialog.h"
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,10 +16,19 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
                        QWidget *parent)
     : QWidget(parent), m_token(token), m_myRole(myRole) {
   QHBoxLayout *mainLayout = new QHBoxLayout(this);
+  mainLayout->setContentsMargins(4, 4, 4, 4);
+  mainLayout->setSpacing(16);
 
   // Left side: Search
   QVBoxLayout *leftLayout = new QVBoxLayout();
+  leftLayout->setSpacing(12);
+  QLabel *searchTitle = new QLabel("Найти участника", this);
+  searchTitle->setObjectName("sectionTitle");
+  QLabel *searchHint = new QLabel("Ищите по имени или username, затем добавляйте в друзья.", this);
+  searchHint->setObjectName("mutedLabel");
+  searchHint->setWordWrap(true);
   QHBoxLayout *searchLayout = new QHBoxLayout();
+  searchLayout->setSpacing(10);
   m_searchEdit = new QLineEdit();
   m_searchEdit->setPlaceholderText("Имя или Username");
   m_btnSearch = new QPushButton("Искать");
@@ -28,17 +38,23 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   m_searchResults = new QListWidget();
   m_btnAddFriend = new QPushButton("Добавить в друзья");
 
+  leftLayout->addWidget(searchTitle);
+  leftLayout->addWidget(searchHint);
   leftLayout->addLayout(searchLayout);
   leftLayout->addWidget(m_searchResults);
   leftLayout->addWidget(m_btnAddFriend);
 
   // Right side: Friends
   QVBoxLayout *rightLayout = new QVBoxLayout();
+  rightLayout->setSpacing(12);
+  QLabel *friendsTitle = new QLabel("Мои друзья", this);
+  friendsTitle->setObjectName("sectionTitle");
   m_friendsList = new QListWidget();
   m_btnRemoveFriend = new QPushButton("Удалить из друзей");
   QPushButton *btnRefresh = new QPushButton("Обновить друзей");
 
-  rightLayout->addWidget(btnRefresh);
+  rightLayout->addWidget(friendsTitle);
+  rightLayout->addWidget(btnRefresh, 0, Qt::AlignLeft);
   rightLayout->addWidget(m_friendsList);
   rightLayout->addWidget(m_btnRemoveFriend);
 

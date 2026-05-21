@@ -16,12 +16,14 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
     : QDialog(parent), m_token(token), m_targetUserId(targetUserId),
       m_myRole(myRole), m_isSelf(false), m_canBlog(false), m_myUserId(-1) {
   setWindowTitle("Профиль пользователя");
-  resize(600, 800);
+  resize(720, 820);
 
   QVBoxLayout *L = new QVBoxLayout(this);
+  L->setContentsMargins(22, 22, 22, 22);
+  L->setSpacing(12);
 
   m_lblUsername = new QLabel("Загрузка...", this);
-  m_lblUsername->setStyleSheet("font-size: 24px; font-weight: bold;");
+  m_lblUsername->setObjectName("sectionTitle");
   m_lblName = new QLabel(this);
   m_lblRating = new QLabel(this);
   m_lblEmail = new QLabel(this); // can be hidden
@@ -31,7 +33,9 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   L->addWidget(m_lblRating);
   L->addWidget(m_lblEmail);
 
-  L->addWidget(new QLabel("<b>Блог:</b>"));
+  QLabel *blogTitle = new QLabel("Блог", this);
+  blogTitle->setObjectName("sectionTitle");
+  L->addWidget(blogTitle);
 
   m_txtNewPost = new QTextEdit(this);
   m_txtNewPost->setPlaceholderText("О чем вы думаете?");
@@ -135,10 +139,10 @@ void ProfileDialog::loadBlogPosts() {
       for (auto v : arr) {
         QJsonObject o = v.toObject();
         QFrame *f = new QFrame(m_blogContainer);
-        f->setFrameShape(QFrame::StyledPanel);
+        f->setObjectName("softCard");
         QVBoxLayout *l = new QVBoxLayout(f);
         QLabel *dateLbl = new QLabel(o["created_at"].toString());
-        dateLbl->setStyleSheet("color: gray; font-size: 10px;");
+        dateLbl->setObjectName("mutedLabel");
         QLabel *cLbl = new QLabel(o["content"].toString());
         cLbl->setWordWrap(true);
         QPushButton *bComment = new QPushButton("Комментарии");

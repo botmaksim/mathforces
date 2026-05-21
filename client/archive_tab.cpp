@@ -5,8 +5,11 @@
 ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
     : QWidget(parent), m_token(token) {
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
+  mainLayout->setContentsMargins(4, 4, 4, 4);
+  mainLayout->setSpacing(14);
 
   QHBoxLayout *filterLayout = new QHBoxLayout();
+  filterLayout->setSpacing(10);
   m_filterTags = new QLineEdit(this);
   m_filterTags->setPlaceholderText("Теги (через запятую)...");
 
@@ -16,7 +19,7 @@ ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
   m_filterMaxDiff = new QLineEdit(this);
   m_filterMaxDiff->setPlaceholderText("Макс. сложность");
 
-  m_btnFilter = new QPushButton("Искать", this);
+  m_btnFilter = new QPushButton("Найти задачи", this);
 
   filterLayout->addWidget(m_filterTags);
   filterLayout->addWidget(m_filterMinDiff);
@@ -28,6 +31,7 @@ ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
   m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_table->setAlternatingRowColors(true);
 
   mainLayout->addLayout(filterLayout);
   mainLayout->addWidget(m_table);

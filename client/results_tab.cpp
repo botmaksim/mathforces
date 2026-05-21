@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -16,19 +17,28 @@ ResultsTab::ResultsTab(const QString &token, const QString &myRole,
                        QWidget *parent)
     : QWidget(parent), m_token(token), m_myRole(myRole) {
   QVBoxLayout *l = new QVBoxLayout(this);
-  QPushButton *btn = new QPushButton("Обновить", this);
+  l->setContentsMargins(4, 4, 4, 4);
+  l->setSpacing(14);
+  QLabel *title = new QLabel("Таблица результатов", this);
+  title->setObjectName("sectionTitle");
+  QLabel *hint = new QLabel("Дважды нажмите на участника, чтобы открыть профиль.", this);
+  hint->setObjectName("mutedLabel");
+  QPushButton *btn = new QPushButton("Обновить результаты", this);
   m_table = new QTableWidget(0, 5, this);
   m_table->setHorizontalHeaderLabels(
       {"Место", "Участник", "Баллы", "Штраф (мин)", "Официальный"});
   m_table->horizontalHeader()->setStretchLastSection(true);
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  l->addWidget(btn);
+  m_table->setAlternatingRowColors(true);
+  l->addWidget(title);
+  l->addWidget(hint);
+  l->addWidget(btn, 0, Qt::AlignLeft);
   l->addWidget(m_table);
 
   QHBoxLayout *adminL = new QHBoxLayout();
   QPushButton *btnRate =
-      new QPushButton("Пересчитать Эло (только для Админов)", this);
+      new QPushButton("Пересчитать Эло", this);
   adminL->addWidget(btnRate);
   adminL->addStretch();
   if (m_myRole == "admin" || m_myRole == "superadmin") {

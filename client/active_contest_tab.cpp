@@ -24,15 +24,24 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
                                    QWidget *parent)
     : QWidget(parent), m_token(token), m_role(role) {
   QHBoxLayout *mainL = new QHBoxLayout(this);
+  mainL->setContentsMargins(4, 4, 4, 4);
+  mainL->setSpacing(16);
+
   m_tasks = new QListWidget(this);
+  m_tasks->setObjectName("taskList");
+
   QVBoxLayout *rightL = new QVBoxLayout();
-  m_desc = new QLabel("Выберите задачу слева", this);
+  rightL->setContentsMargins(0, 0, 0, 0);
+  rightL->setSpacing(12);
+
+  m_desc = new QLabel("Выберите задачу слева - здесь появится условие.", this);
+  m_desc->setObjectName("infoCard");
   m_desc->setWordWrap(true);
 
-  QPushButton *btnPdfTask =
-      new QPushButton("Сгенерировать PDF условия (Typst)", this);
+  QPushButton *btnPdfTask = new QPushButton("Открыть условие в PDF", this);
 
   m_answer = new QTextEdit(this);
+  m_answer->setPlaceholderText("Пишите решение здесь. Можно использовать LaTeX/Typst - предпросмотр справа обновится автоматически.");
 
   // Подключаем подсветку синтаксиса для поля ответа (LaTeX, Typst)
   new MathHighlighter(m_answer->document());
@@ -44,7 +53,7 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   m_btnShowEditorial = new QPushButton("Посмотреть разбор (Typst)", this);
   m_btnShowEditorial->hide();
 
-  m_btnAllSubmissions = new QPushButton("Все решения (Взломать)", this);
+  m_btnAllSubmissions = new QPushButton("Все решения и хаки", this);
 
   connect(m_btnShowEditorial, &QPushButton::clicked, [this]() {
     if (!m_tasks->currentItem())
@@ -62,9 +71,11 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   m_submissionsTable->horizontalHeader()->setStretchLastSection(true);
   m_submissionsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_submissionsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_submissionsTable->setAlternatingRowColors(true);
 
   m_pdfDoc = new QPdfDocument(this);
   m_pdfView = new QPdfView(this);
+  m_pdfView->setObjectName("pdfPreview");
   m_pdfView->setDocument(m_pdfDoc);
   m_pdfView->setPageMode(QPdfView::PageMode::MultiPage);
   m_pdfTempFile = new QTemporaryFile(this);
@@ -94,7 +105,12 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   editorL->addWidget(m_pdfView, 1);
   rightL->addLayout(editorL);
 
-  rightL->addWidget(btnSub);
+  QHBoxLayout *actionsL = new QHBoxLayout();
+  actionsL->setSpacing(10);
+  actionsL->addWidget(btnPreviewAnswer);
+  actionsL->addWidget(btnSub);
+  actionsL->addStretch();
+  rightL->addLayout(actionsL);
   rightL->addLayout(subsHeaderL);
   rightL->addWidget(m_submissionsTable);
 

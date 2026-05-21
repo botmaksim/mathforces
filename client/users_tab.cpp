@@ -20,9 +20,18 @@
 UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
     : QWidget(parent), m_token(token), m_myRole(myRole) {
   QVBoxLayout *l = new QVBoxLayout(this);
+  l->setContentsMargins(4, 4, 4, 4);
+  l->setSpacing(14);
 
-  QPushButton *btnRefresh = new QPushButton("Обновить", this);
-  l->addWidget(btnRefresh);
+  QLabel *title = new QLabel("Управление пользователями", this);
+  title->setObjectName("sectionTitle");
+  QLabel *hint = new QLabel("Двойной клик открывает профиль. Изменения ролей, банов и прав на блог сохраняются кнопками в таблице.", this);
+  hint->setObjectName("mutedLabel");
+  hint->setWordWrap(true);
+  QPushButton *btnRefresh = new QPushButton("Обновить пользователей", this);
+  l->addWidget(title);
+  l->addWidget(hint);
+  l->addWidget(btnRefresh, 0, Qt::AlignLeft);
 
   m_table = new QTableWidget(this);
   m_table->setColumnCount(8);
@@ -31,6 +40,7 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
   m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_table->setAlternatingRowColors(true);
   l->addWidget(m_table);
 
   connect(btnRefresh, &QPushButton::clicked, this, &UsersTab::loadUsers);
@@ -73,7 +83,7 @@ void UsersTab::loadUsers() {
           QComboBox *cb = new QComboBox(roleWidget);
           cb->addItems({"student", "admin", "moderator", "superadmin"});
           cb->setCurrentText(o["role"].toString());
-          QPushButton *btn = new QPushButton("Save", roleWidget);
+          QPushButton *btn = new QPushButton("Сохранить", roleWidget);
           cb->setProperty("userId", id);
           roleWidget->setProperty("cb", QVariant::fromValue((void *)cb));
           connect(btn, &QPushButton::clicked,
@@ -89,9 +99,9 @@ void UsersTab::loadUsers() {
         QWidget *banWidget = new QWidget(this);
         QHBoxLayout *banLayout = new QHBoxLayout(banWidget);
         banLayout->setContentsMargins(0, 0, 0, 0);
-        QCheckBox *chk = new QCheckBox("Banned");
+        QCheckBox *chk = new QCheckBox("Забанен");
         chk->setChecked(o["is_banned"].toBool());
-        QPushButton *btnBan = new QPushButton("Save");
+        QPushButton *btnBan = new QPushButton("Сохранить");
         chk->setProperty("userId", id);
         banWidget->setProperty("chk", QVariant::fromValue((void *)chk));
         connect(btnBan, &QPushButton::clicked,
