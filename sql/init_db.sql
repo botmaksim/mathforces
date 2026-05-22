@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS friends CASCADE;
 DROP TABLE IF EXISTS hacks CASCADE;
 DROP TABLE IF EXISTS virtual_participations CASCADE;
 DROP TABLE IF EXISTS comments CASCADE;
@@ -105,10 +106,19 @@ CREATE TABLE comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE friends (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    friend_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, friend_id)
+);
+
+
 -- Тестовые данные
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('superadmin', 'superadmin@example.com', '12345', 'superadmin', 'Super Admin');
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('admin', 'admin@example.com', '12345', 'admin', 'Admin');
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('student', 'student@example.com', '12345', 'student', 'Student');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('superadmin', 'superadmin@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'superadmin', 'Super Admin');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('admin', 'admin@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'admin', 'Admin');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('student', 'student@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'student', 'Student');
 
 -- Выдаем права пользователю mathforces
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO mathforces;
