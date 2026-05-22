@@ -3,6 +3,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QJsonDocument>
+#include <QJsonObject>
 
 ApiClient::ApiClient(QObject* parent) : QObject(parent) {
     m_manager = new QNetworkAccessManager(this);
@@ -36,7 +37,7 @@ void ApiClient::fetchArchiveTasks(const QString& token, const QString& tags, con
         urlStr += "max_diff=" + maxDiff + "&";
     }
 
-    QNetworkRequest req(QUrl(urlStr));
+    QNetworkRequest req((QUrl(urlStr)));
     if (!token.isEmpty()) req.setRawHeader("Authorization", token.toUtf8());
     
     QNetworkReply* reply = m_manager->get(req);

@@ -50,6 +50,20 @@ CREATE TABLE tasks (
     difficulty INTEGER DEFAULT 1000
 );
 
+CREATE TABLE submissions (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    answer_text TEXT NOT NULL,
+    score INTEGER DEFAULT 0,
+    feedback TEXT,
+    thinking TEXT,
+    ai_probability FLOAT,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'graded'
+    is_upsolving BOOLEAN DEFAULT FALSE,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE virtual_participations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -73,20 +87,6 @@ CREATE TABLE contest_participants (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     is_official BOOLEAN DEFAULT TRUE,
     UNIQUE(contest_id, user_id)
-);
-
-CREATE TABLE submissions (
-    id SERIAL PRIMARY KEY,
-    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    answer_text TEXT NOT NULL,
-    score INTEGER DEFAULT 0,
-    feedback TEXT,
-    thinking TEXT,
-    ai_probability FLOAT,
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'graded'
-    is_upsolving BOOLEAN DEFAULT FALSE,
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE blogs (
