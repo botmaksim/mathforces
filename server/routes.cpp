@@ -21,6 +21,8 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStringList>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QUuid>
 #include <QVariant>
 
@@ -188,30 +190,33 @@ void setupRoutes(QHttpServer &server) {
     return jsonResponse(QJsonArray());
   };
 
-  server.route("/api/register/request_code",
-               [](const QHttpServerRequest &request) {
-                 if (request.method() != QHttpServerRequest::Method::Post)
-                   return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
-                 auto json = parseJson(request);
-                 QString email = json["email"].toString();
-                 if (email.isEmpty())
-                   return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::BadRequest);
+  server.route(
+      "/api/register/request_code", [](const QHttpServerRequest &request) {
+        if (request.method() != QHttpServerRequest::Method::Post)
+          return jsonResponse(
+              QJsonObject(),
+              QHttpServerResponder::StatusCode::MethodNotAllowed);
+        auto json = parseJson(request);
+        QString email = json["email"].toString();
+        if (email.isEmpty())
+          return jsonResponse(QJsonObject(),
+                              QHttpServerResponder::StatusCode::BadRequest);
 
-                 QString code = QString::number(
-                     QRandomGenerator::global()->bounded(100000, 999999));
-                 {
-                   QMutexLocker lock(&g_emailCodesMutex);
-                   g_emailCodes[email] = code;
-                 }
-                 QString subject = "Код подтверждения Mathforces";
-                 QString body =
-                     QString("Ваш код подтверждения для регистрации в "
-                             "Mathforces: %1\r\nНикому не сообщайте этот код.")
-                         .arg(code);
-                 SmtpClient::sendEmail(email, subject, body);
+        QString code = QString::number(
+            QRandomGenerator::global()->bounded(100000, 999999));
+        {
+          QMutexLocker lock(&g_emailCodesMutex);
+          g_emailCodes[email] = code;
+        }
+        QString subject = "Код подтверждения Mathforces";
+        QString body =
+            QString("Ваш код подтверждения для регистрации в "
+                    "Mathforces: %1\r\nНикому не сообщайте этот код.")
+                .arg(code);
+        SmtpClient::sendEmail(email, subject, body);
 
-                 return jsonResponse(QJsonObject{{"status", "ok"}});
-               });
+        return jsonResponse(QJsonObject{{"status", "ok"}});
+      });
 
   server.route("/api/register/email", [](const QHttpServerRequest &request) {
     if (request.method() != QHttpServerRequest::Method::Post)
@@ -258,8 +263,10 @@ void setupRoutes(QHttpServer &server) {
     QString token = QString::fromUtf8(request.value("Authorization"));
     int admin_id = 0;
     QString role;
-    if (!VerifyJwt(token, admin_id, role) || (role != "superadmin" && role != "moderator")) {
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Forbidden);
+    if (!VerifyJwt(token, admin_id, role) ||
+        (role != "superadmin" && role != "moderator")) {
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::Forbidden);
     }
     QSqlQuery q;
     q.prepare("SELECT id, username, email, name, role, is_banned, "
@@ -557,9 +564,11 @@ void setupRoutes(QHttpServer &server) {
 
   server.route("/api/compile_typst", [](const QHttpServerRequest &request) {
     if (request.method() != QHttpServerRequest::Method::Post)
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::MethodNotAllowed);
     auto in = parseJson(request);
-    QString baseTypst = "#set page(margin: 1.5cm)\n#set text(lang: \"ru\")\n#set math.equation(numbering: \"(1)\")\n";
+    QString baseTypst = "#set page(margin: 1.5cm)\n#set text(lang: "
+                        "\"ru\")\n#set math.equation(numbering: \"(1)\")\n";
     QString typstCode = baseTypst + in["code"].toString();
     QString id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QString tempInPath = QDir::currentPath() + "/mathforces_" + id + ".typ";
@@ -572,37 +581,45 @@ void setupRoutes(QHttpServer &server) {
       tempIn.close();
     }
     QProcess process;
-    process.start("npx", QStringList() << "-y" << "typst" << "compile" << tempInPath << outPath);
+    process.start("typst", QStringList() << "compile" << tempInPath << outPath);
     process.waitForFinished();
     if (process.exitCode() != 0) {
       QFile::remove(tempInPath);
       QFile::remove(outPath);
-      return jsonResponse(QJsonObject{{"error", "compile failed"}}, QHttpServerResponder::StatusCode::BadRequest);
+      return jsonResponse(QJsonObject{{"error", "compile failed"}},
+                          QHttpServerResponder::StatusCode::BadRequest);
     }
     QFile outFile(outPath);
     if (!outFile.open(QIODevice::ReadOnly)) {
       QFile::remove(tempInPath);
       QFile::remove(outPath);
-      return jsonResponse(QJsonObject{{"error", "no output"}}, QHttpServerResponder::StatusCode::InternalServerError);
+      return jsonResponse(
+          QJsonObject{{"error", "no output"}},
+          QHttpServerResponder::StatusCode::InternalServerError);
     }
     QByteArray pdfData = outFile.readAll();
     outFile.close();
     QFile::remove(tempInPath);
     QFile::remove(outPath);
-    return QHttpServerResponse("application/pdf", pdfData, QHttpServerResponder::StatusCode::Ok);
+    return QHttpServerResponse("application/pdf", pdfData,
+                               QHttpServerResponder::StatusCode::Ok);
   });
 
   server.route("/api/admin/my_contests", [](const QHttpServerRequest &request) {
     if (request.method() != QHttpServerRequest::Method::Get)
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::MethodNotAllowed);
     QString token = QString::fromUtf8(request.value("Authorization"));
     int admin_id = 0;
     QString admin_role;
-    if (!VerifyJwt(token, admin_id, admin_role) || (admin_role != "superadmin" && admin_role != "admin"))
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Forbidden);
-    
+    if (!VerifyJwt(token, admin_id, admin_role) ||
+        (admin_role != "superadmin" && admin_role != "admin"))
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::Forbidden);
+
     QSqlQuery q;
-    q.prepare("SELECT id, title, start_time::text, duration_hours, is_published FROM contests WHERE author_id=:o ORDER BY id DESC");
+    q.prepare("SELECT id, title, start_time::text, duration_hours, "
+              "is_published FROM contests WHERE author_id=:o ORDER BY id DESC");
     q.bindValue(":o", admin_id);
     QJsonArray arr;
     if (q.exec()) {
@@ -616,7 +633,7 @@ void setupRoutes(QHttpServer &server) {
         arr.append(obj);
       }
     } else {
-        qDebug() << "DB error my_contests:" << q.lastError().text();
+      qDebug() << "DB error my_contests:" << q.lastError().text();
     }
     return jsonResponse(arr);
   });
@@ -625,22 +642,29 @@ void setupRoutes(QHttpServer &server) {
     QString token = QString::fromUtf8(request.value("Authorization"));
     int admin_id = 0;
     QString admin_role;
-    if (!VerifyJwt(token, admin_id, admin_role) || (admin_role != "superadmin" && admin_role != "admin"))
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Forbidden);
-      
+    if (!VerifyJwt(token, admin_id, admin_role) ||
+        (admin_role != "superadmin" && admin_role != "admin"))
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::Forbidden);
+
     if (request.method() == QHttpServerRequest::Method::Post) {
       QSqlQuery q;
-      q.prepare("INSERT INTO contests (author_id, title, start_time, end_time) VALUES (:o, 'New Draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id");
+      q.prepare("INSERT INTO contests (author_id, title, start_time, end_time) "
+                "VALUES (:o, 'New Draft', CURRENT_TIMESTAMP, "
+                "CURRENT_TIMESTAMP) RETURNING id");
       q.bindValue(":o", admin_id);
       if (q.exec() && q.next()) {
-        return jsonResponse(QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
+        return jsonResponse(
+            QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
       } else {
         qDebug() << "DB error create_contest:" << q.lastError().text();
       }
     } else if (request.method() == QHttpServerRequest::Method::Put) {
       auto in = parseJson(request);
       QSqlQuery q;
-      q.prepare("UPDATE contests SET title=:t, description=:d, start_time=:s::timestamp, end_time=(:s::timestamp + interval '1 hour' * :dh), duration_hours=:dh, is_published=:p "
+      q.prepare("UPDATE contests SET title=:t, description=:d, "
+                "start_time=:s::timestamp, end_time=(:s::timestamp + interval "
+                "'1 hour' * :dh), duration_hours=:dh, is_published=:p "
                 "WHERE id=:i AND author_id=:o");
       q.bindValue(":t", in["title"].toString());
       q.bindValue(":d", in["description"].toString());
@@ -655,23 +679,30 @@ void setupRoutes(QHttpServer &server) {
         qDebug() << "DB error update_contest:" << q.lastError().text();
       }
     }
-    return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::BadRequest);
+    return jsonResponse(QJsonObject(),
+                        QHttpServerResponder::StatusCode::BadRequest);
   });
 
   server.route("/api/admin/task", [](const QHttpServerRequest &request) {
     if (request.method() != QHttpServerRequest::Method::Post)
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::MethodNotAllowed);
     QString token = QString::fromUtf8(request.value("Authorization"));
     int admin_id = 0;
     QString admin_role;
-    if (!VerifyJwt(token, admin_id, admin_role) || (admin_role != "superadmin" && admin_role != "admin"))
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Forbidden);
-      
+    if (!VerifyJwt(token, admin_id, admin_role) ||
+        (admin_role != "superadmin" && admin_role != "admin"))
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::Forbidden);
+
     auto in = parseJson(request);
     QSqlQuery q;
-    q.prepare("INSERT INTO tasks (contest_id, task_type, title, description, max_score, max_submissions, "
-              "correct_answer, editorial, send_editorial_to_ai, ai_comment, tags, difficulty) "
-              "VALUES (:c, :tt, :t, :d, :ms, :msub, :ca, :ed, :se, :aic, :tg, :df)");
+    q.prepare(
+        "INSERT INTO tasks (contest_id, task_type, title, description, "
+        "max_score, max_submissions, "
+        "correct_answer, editorial, send_editorial_to_ai, ai_comment, tags, "
+        "difficulty) "
+        "VALUES (:c, :tt, :t, :d, :ms, :msub, :ca, :ed, :se, :aic, :tg, :df)");
     q.bindValue(":c", in["contest_id"].toInt());
     q.bindValue(":tt", in["task_type"].toString());
     q.bindValue(":t", in["title"].toString());
@@ -687,19 +718,144 @@ void setupRoutes(QHttpServer &server) {
     if (q.exec()) {
       return jsonResponse(QJsonObject{{"status", "ok"}});
     }
-    return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::BadRequest);
+    return jsonResponse(QJsonObject(),
+                        QHttpServerResponder::StatusCode::BadRequest);
   });
 
-  server.route("/api/admin/rate_contest", [](const QHttpServerRequest &request) {
-    if (request.method() != QHttpServerRequest::Method::Post)
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
-    QString token = QString::fromUtf8(request.value("Authorization"));
-    int admin_id = 0;
-    QString admin_role;
-    if (!VerifyJwt(token, admin_id, admin_role) || (admin_role != "superadmin" && admin_role != "admin"))
-      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Forbidden);
-    // Rate dummy action
-    return jsonResponse(QJsonObject{{"status", "ok"}});
+  server.route(
+      "/api/admin/rate_contest", [](const QHttpServerRequest &request) {
+        if (request.method() != QHttpServerRequest::Method::Post)
+          return jsonResponse(
+              QJsonObject(),
+              QHttpServerResponder::StatusCode::MethodNotAllowed);
+        QString token = QString::fromUtf8(request.value("Authorization"));
+        int admin_id = 0;
+        QString admin_role;
+        if (!VerifyJwt(token, admin_id, admin_role) ||
+            (admin_role != "superadmin" && admin_role != "admin"))
+          return jsonResponse(QJsonObject(),
+                              QHttpServerResponder::StatusCode::Forbidden);
+        // Rate dummy action
+        return jsonResponse(QJsonObject{{"status", "ok"}});
+      });
+
+  server.route("/api/blog/posts", [](const QHttpServerRequest &request) {
+    if (request.method() == QHttpServerRequest::Method::Get) {
+      QUrlQuery query(request.url().query());
+      QString userIdStr = query.queryItemValue("user_id");
+      QSqlQuery q;
+      if (userIdStr.isEmpty()) {
+        q.prepare("SELECT b.id, b.title, b.content, b.created_at::text, "
+                  "u.username, u.name, u.role FROM blogs b JOIN users u ON "
+                  "b.user_id = u.id ORDER BY b.id DESC");
+      } else {
+        q.prepare("SELECT b.id, b.title, b.content, b.created_at::text, "
+                  "u.username, u.name, u.role FROM blogs b JOIN users u ON "
+                  "b.user_id = u.id WHERE b.user_id=:u ORDER BY b.id DESC");
+        q.bindValue(":u", userIdStr.toInt());
+      }
+      QJsonArray arr;
+      if (q.exec()) {
+        while (q.next()) {
+          QJsonObject obj;
+          obj["id"] = q.value("id").toInt();
+          obj["title"] = q.value("title").toString();
+          obj["content"] = q.value("content").toString();
+          obj["created_at"] = q.value("created_at").toString();
+          obj["author_username"] = q.value("username").toString();
+          obj["author_name"] = q.value("name").toString();
+          obj["author_role"] = q.value("role").toString();
+          arr.append(obj);
+        }
+      }
+      return jsonResponse(arr);
+    } else if (request.method() == QHttpServerRequest::Method::Post) {
+      QString token = QString::fromUtf8(request.value("Authorization"));
+      int user_id = 0;
+      QString role;
+      if (!VerifyJwt(token, user_id, role))
+        return jsonResponse(QJsonObject(),
+                            QHttpServerResponder::StatusCode::Unauthorized);
+
+      QSqlQuery qUser;
+      qUser.prepare("SELECT can_blog FROM users WHERE id=:i");
+      qUser.bindValue(":i", user_id);
+      if (!qUser.exec() || !qUser.next() || !qUser.value("can_blog").toBool())
+        return jsonResponse(QJsonObject{{"error", "cannot blog"}},
+                            QHttpServerResponder::StatusCode::Forbidden);
+
+      auto in = parseJson(request);
+      QSqlQuery q;
+      q.prepare("INSERT INTO blogs (user_id, title, content) VALUES (:u, :t, "
+                ":c) RETURNING id");
+      q.bindValue(":u", user_id);
+      q.bindValue(":t", in["title"].toString());
+      q.bindValue(":c", in["content"].toString());
+      if (q.exec() && q.next()) {
+        return jsonResponse(
+            QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
+      }
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::BadRequest);
+    }
+    return jsonResponse(QJsonObject(),
+                        QHttpServerResponder::StatusCode::MethodNotAllowed);
+  });
+
+  server.route("/api/blog/comments", [](const QHttpServerRequest &request) {
+    if (request.method() == QHttpServerRequest::Method::Get) {
+      QUrlQuery query(request.url().query());
+      QString postIdStr = query.queryItemValue("post_id");
+      QSqlQuery q;
+      q.prepare("SELECT c.id, c.content, c.created_at::text, u.username, "
+                "u.name, u.role FROM comments c JOIN users u ON c.user_id = "
+                "u.id WHERE c.blog_id=:b ORDER BY c.id ASC");
+      q.bindValue(":b", postIdStr.toInt());
+      QJsonArray arr;
+      if (q.exec()) {
+        while (q.next()) {
+          QJsonObject obj;
+          obj["id"] = q.value("id").toInt();
+          obj["content"] = q.value("content").toString();
+          obj["created_at"] = q.value("created_at").toString();
+          obj["author_username"] = q.value("username").toString();
+          obj["author_name"] = q.value("name").toString();
+          obj["author_role"] = q.value("role").toString();
+          arr.append(obj);
+        }
+      }
+      return jsonResponse(arr);
+    } else if (request.method() == QHttpServerRequest::Method::Post) {
+      QString token = QString::fromUtf8(request.value("Authorization"));
+      int user_id = 0;
+      QString role;
+      if (!VerifyJwt(token, user_id, role))
+        return jsonResponse(QJsonObject(),
+                            QHttpServerResponder::StatusCode::Unauthorized);
+
+      QSqlQuery qUser;
+      qUser.prepare("SELECT can_blog FROM users WHERE id=:i");
+      qUser.bindValue(":i", user_id);
+      if (!qUser.exec() || !qUser.next() || !qUser.value("can_blog").toBool())
+        return jsonResponse(QJsonObject{{"error", "cannot blog"}},
+                            QHttpServerResponder::StatusCode::Forbidden);
+
+      auto in = parseJson(request);
+      QSqlQuery q;
+      q.prepare("INSERT INTO comments (blog_id, user_id, content) VALUES (:b, "
+                ":u, :c) RETURNING id");
+      q.bindValue(":b", in["post_id"].toInt());
+      q.bindValue(":u", user_id);
+      q.bindValue(":c", in["content"].toString());
+      if (q.exec() && q.next()) {
+        return jsonResponse(
+            QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
+      }
+      return jsonResponse(QJsonObject(),
+                          QHttpServerResponder::StatusCode::BadRequest);
+    }
+    return jsonResponse(QJsonObject(),
+                        QHttpServerResponder::StatusCode::MethodNotAllowed);
   });
 
   server.route("/api/results", dummyEmptyArray);
