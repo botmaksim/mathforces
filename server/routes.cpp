@@ -90,6 +90,18 @@ static QJsonObject callGeminiJson(const QString& prompt, const QString& systemIn
   if (candidates.isEmpty()) return QJsonObject{{"score", 0}, {"status", "unsuccessful"}, {"comment", "Error: empty candidates"}};
   QString text = candidates[0].toObject()["content"].toObject()["parts"].toArray()[0].toObject()["text"].toString();
   
+  text = text.trimmed();
+  if (text.startsWith("```json")) {
+      text.remove(0, 7);
+  }
+  if (text.startsWith("```")) {
+      text.remove(0, 3);
+  }
+  if (text.endsWith("```")) {
+      text.chop(3);
+  }
+  text = text.trimmed();
+
   QJsonObject result = QJsonDocument::fromJson(text.toUtf8()).object();
   return result;
 }
@@ -870,13 +882,15 @@ void setupRoutes(QHttpServer &server) {
       q.prepare("INSERT INTO blogs (user_id, title, content) VALUES (:u, :t, "
                 ":c) RETURNING id");
       q.bindValue(":u", user_id);
-      q.bindValue(":t", in["title"].toString());
+      QString title = in["title"].toString();
+      if (title.isEmpty()) title = "Blog Post";
+      q.bindValue(":t", title);
       q.bindValue(":c", in["content"].toString());
       if (q.exec() && q.next()) {
         return jsonResponse(
             QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
       }
-      return jsonResponse(QJsonObject(),
+      return jsonResponse(QJsonObject{{"error", q.lastError().text()}},
                           QHttpServerResponder::StatusCode::BadRequest);
     }
     return jsonResponse(QJsonObject(),
@@ -932,7 +946,7 @@ void setupRoutes(QHttpServer &server) {
         return jsonResponse(
             QJsonObject{{"status", "ok"}, {"id", q.value("id").toInt()}});
       }
-      return jsonResponse(QJsonObject(),
+      return jsonResponse(QJsonObject{{"error", q.lastError().text()}},
                           QHttpServerResponder::StatusCode::BadRequest);
     }
     return jsonResponse(QJsonObject(),

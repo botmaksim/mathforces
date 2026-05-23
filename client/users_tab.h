@@ -20,7 +20,6 @@ private slots:
   void applyRoleChange(int row);
   void applyBanChange(int row);
   void applyBlogChange(int row);
-  void onCustomContextMenuRequired(const QPoint& pos);
 
 private:
   QString m_token;
@@ -28,6 +27,9 @@ private:
   QTableView *m_tableView;
   UsersTableModel *m_model;
   UsersPresenter *m_presenter;
+  class QPushButton *m_btnRoleEdit;
+  class QPushButton *m_btnBanToggle;
+  class QPushButton *m_btnBlogToggle;
 };
 
 #endif // USERS_TAB_H

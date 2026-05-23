@@ -300,8 +300,9 @@ void ActiveContestTab::showAllSubmissions() {
     hl->addWidget(sendBtn);
 
     auto hConn = std::make_shared<QMetaObject::Connection>();
-    *hConn = connect(m_presenter, &ActiveContestPresenter::hackSuccessful, [&hackDlg, hConn](){
-        QMessageBox::information(&hackDlg, "Ок", "Взлом отправлен, ожидайте вердикта ИИ!");
+    *hConn = connect(m_presenter, &ActiveContestPresenter::hackSuccessful, [&hackDlg, hConn](const QString& verdict, const QString& comment){
+        QString msg = QString("Вердикт ИИ: %1\n\nКомментарий:\n%2").arg(verdict, comment);
+        QMessageBox::information(&hackDlg, "Результат взлома", msg);
         QObject::disconnect(*hConn);
         hackDlg.accept();
     });

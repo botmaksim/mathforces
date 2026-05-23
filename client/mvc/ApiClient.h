@@ -63,7 +63,7 @@ signals:
     void submissionSuccessful();
     void mySubmissionsLoaded(const QJsonArray& data);
     void allSubmissionsLoaded(const QJsonArray& data);
-    void hackSuccessful();
+    void hackSuccessful(const QString& verdict, const QString& comment);
     void profileLoaded(const QJsonObject& data, int targetUserId);
     void blogPostsLoaded(const QJsonArray& data);
     void blogPostAdded();

@@ -23,7 +23,7 @@ signals:
     void submissionSuccessful();
     void mySubmissionsLoaded(const QJsonArray& data);
     void allSubmissionsLoaded(const QJsonArray& data);
-    void hackSuccessful();
+    void hackSuccessful(const QString& verdict, const QString& comment);
     void typstCompiled(const QByteArray& pdfData);
     void realtimeTypstCompiled(const QByteArray& pdfData);
     void errorOccurred(const QString& errorStr);

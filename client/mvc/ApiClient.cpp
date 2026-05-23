@@ -470,7 +470,8 @@ void ApiClient::submitHack(const QString &token, int submissionId,
   QNetworkReply *reply = m_manager->post(req, QJsonDocument(j).toJson());
   connect(reply, &QNetworkReply::finished, [this, reply]() {
     if (reply->error() == QNetworkReply::NoError) {
-      emit hackSuccessful();
+      QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+      emit hackSuccessful(obj["verdict"].toString(), obj["ai_comment"].toString());
     } else
       emit errorOccurred(reply->errorString());
     reply->deleteLater();

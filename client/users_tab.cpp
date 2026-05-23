@@ -35,8 +35,34 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
   m_tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
   m_tableView->setAlternatingRowColors(true);
-  m_tableView->setContextMenuPolicy(Qt::CustomContextMenu);
   l->addWidget(m_tableView);
+
+  QHBoxLayout *actionLayout = new QHBoxLayout;
+  m_btnRoleEdit = new QPushButton("Изменить роль");
+  m_btnBanToggle = new QPushButton("Забанить / Разбанить");
+  m_btnBlogToggle = new QPushButton("Право на блог");
+  actionLayout->addWidget(m_btnRoleEdit);
+  actionLayout->addWidget(m_btnBanToggle);
+  actionLayout->addWidget(m_btnBlogToggle);
+  actionLayout->addStretch();
+  l->addLayout(actionLayout);
+
+  m_btnRoleEdit->hide();
+  m_btnBanToggle->hide();
+  m_btnBlogToggle->hide();
+
+  if (m_myRole == "superadmin") {
+      m_btnRoleEdit->show();
+      m_btnBanToggle->show();
+      m_btnBlogToggle->show();
+  } else if (m_myRole == "moderator") {
+      m_btnBanToggle->show();
+      m_btnBlogToggle->show();
+  }
+
+  m_btnRoleEdit->setEnabled(false);
+  m_btnBanToggle->setEnabled(false);
+  m_btnBlogToggle->setEnabled(false);
 
   connect(btnRefresh, &QPushButton::clicked, this, &UsersTab::loadUsers);
   connect(m_tableView, &QTableView::doubleClicked, [this](const QModelIndex& index) {
@@ -46,8 +72,36 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
           d.exec();
       }
   });
-  connect(m_tableView, &QTableView::customContextMenuRequested, this, &UsersTab::onCustomContextMenuRequired);
+
+  connect(m_tableView->selectionModel(), &QItemSelectionModel::selectionChanged, [this]() {
+      bool hasSelection = m_tableView->selectionModel()->hasSelection();
+      m_btnRoleEdit->setEnabled(hasSelection);
+      m_btnBanToggle->setEnabled(hasSelection);
+      m_btnBlogToggle->setEnabled(hasSelection);
+
+      if (hasSelection) {
+          int row = m_tableView->selectionModel()->selectedRows().first().row();
+          m_btnBanToggle->setText(m_model->isUserBanned(row) ? "Разбанить" : "Забанить");
+          m_btnBlogToggle->setText(m_model->canUserBlog(row) ? "Забрать право на блог" : "Дать право на блог");
+      }
+  });
   
+  connect(m_btnRoleEdit, &QPushButton::clicked, [this]() {
+      if (m_tableView->selectionModel()->hasSelection()) {
+          applyRoleChange(m_tableView->selectionModel()->selectedRows().first().row());
+      }
+  });
+  connect(m_btnBanToggle, &QPushButton::clicked, [this]() {
+      if (m_tableView->selectionModel()->hasSelection()) {
+          applyBanChange(m_tableView->selectionModel()->selectedRows().first().row());
+      }
+  });
+  connect(m_btnBlogToggle, &QPushButton::clicked, [this]() {
+      if (m_tableView->selectionModel()->hasSelection()) {
+          applyBlogChange(m_tableView->selectionModel()->selectedRows().first().row());
+      }
+  });
+
   connect(m_presenter, &UsersPresenter::errorOccurred, this, [this](const QString& err){
       QMessageBox::warning(this, "Ошибка", err);
   });
@@ -57,29 +111,6 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
 
 void UsersTab::loadUsers() {
     m_presenter->loadUsers();
-}
-
-void UsersTab::onCustomContextMenuRequired(const QPoint& pos) {
-    QModelIndex index = m_tableView->indexAt(pos);
-    if (!index.isValid()) return;
-    int row = index.row();
-    QMenu menu(this);
-    
-    QAction* actRole = nullptr;
-    if (m_myRole == "superadmin") {
-        actRole = menu.addAction("Изменить роль...");
-        connect(actRole, &QAction::triggered, [this, row](){ applyRoleChange(row); });
-    }
-    QAction* actBanToggle = menu.addAction(m_model->isUserBanned(row) ? "Разбанить" : "Забанить");
-    connect(actBanToggle, &QAction::triggered, [this, row](){ applyBanChange(row); });
-    
-    QAction* actBlogToggle = nullptr;
-    if (m_myRole == "superadmin" || m_myRole == "moderator") {
-        actBlogToggle = menu.addAction(m_model->canUserBlog(row) ? "Забрать право на блог" : "Дать право на блог");
-        connect(actBlogToggle, &QAction::triggered, [this, row](){ applyBlogChange(row); });
-    }
-    
-    menu.exec(m_tableView->viewport()->mapToGlobal(pos));
 }
 
 void UsersTab::applyRoleChange(int row) {

@@ -9,7 +9,7 @@ ActiveContestPresenter::ActiveContestPresenter(const QString& token, QObject* pa
     connect(m_apiClient, &ApiClient::submissionSuccessful, this, [this](){ emit submissionSuccessful(); });
     connect(m_apiClient, &ApiClient::mySubmissionsLoaded, this, [this](const QJsonArray& d){ emit mySubmissionsLoaded(d); });
     connect(m_apiClient, &ApiClient::allSubmissionsLoaded, this, [this](const QJsonArray& d){ emit allSubmissionsLoaded(d); });
-    connect(m_apiClient, &ApiClient::hackSuccessful, this, [this](){ emit hackSuccessful(); });
+    connect(m_apiClient, &ApiClient::hackSuccessful, this, [this](const QString& verdict, const QString& comment){ emit hackSuccessful(verdict, comment); });
     connect(m_apiClient, &ApiClient::typstCompiled, this, [this](const QByteArray& p){ emit typstCompiled(p); });
     connect(m_apiClient, &ApiClient::realtimeTypstCompiled, this, [this](const QByteArray& p){ emit realtimeTypstCompiled(p); });
     connect(m_apiClient, &ApiClient::errorOccurred, this, [this](const QString& e){ emit errorOccurred(e); });
