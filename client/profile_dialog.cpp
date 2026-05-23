@@ -58,6 +58,9 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   // Connection logic
   connect(m_presenter, &ProfilePresenter::myIdLoaded, this, [this](int id){
       m_myUserId = id;
+      if (m_targetUserId == -1) {
+          m_targetUserId = id;
+      }
       loadProfile();
   });
   
@@ -129,11 +132,13 @@ void ProfileDialog::fetchMyId() {
 }
 
 void ProfileDialog::loadProfile() {
-  m_presenter->loadProfile(m_targetUserId);
+  int idToLoad = (m_targetUserId == -1) ? m_myUserId : m_targetUserId;
+  m_presenter->loadProfile(idToLoad);
 }
 
 void ProfileDialog::loadBlogPosts() {
-  m_presenter->loadBlogPosts(m_targetUserId);
+  int idToLoad = (m_targetUserId == -1) ? m_myUserId : m_targetUserId;
+  m_presenter->loadBlogPosts(idToLoad);
 }
 
 void ProfileDialog::addBlogPost() {

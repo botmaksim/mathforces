@@ -388,7 +388,7 @@ void setupRoutes(QHttpServer &server) {
 
     auto json = parseJson(request);
     int task_id = json["task_id"].toInt();
-    QString answer = json["answer_text"].toString();
+    QString answer = json["answer"].toString();
 
     QSqlQuery qTask;
     qTask.prepare("SELECT task_type, correct_answer, max_score, description, editorial, ai_comment FROM tasks WHERE id=:t");
@@ -427,7 +427,8 @@ void setupRoutes(QHttpServer &server) {
       return jsonResponse(QJsonObject{
           {"status", "ok"}, {"submission_id", q.value("id").toInt()}, {"score", score}, {"verdict", status}, {"ai_evaluation", ai_eval}});
     }
-    return jsonResponse(QJsonObject{{"error", "Submission failed"}},
+    qDebug() << "API Submit Error:" << q.lastError().text();
+    return jsonResponse(QJsonObject{{"error", "Submission failed: " + q.lastError().text()}},
                         QHttpServerResponder::StatusCode::BadRequest);
   });
 
@@ -522,7 +523,7 @@ void setupRoutes(QHttpServer &server) {
     int admin_id = 0;
     QString admin_role;
     if (!VerifyJwt(token, admin_id, admin_role) ||
-        (admin_role != "superadmin" && admin_role != "moderator"))
+        (admin_role != "superadmin" && admin_role != "admin" && admin_role != "moderator"))
       return jsonResponse(QJsonObject(),
                           QHttpServerResponder::StatusCode::Unauthorized);
     auto json = parseJson(request);
@@ -534,7 +535,8 @@ void setupRoutes(QHttpServer &server) {
     q.bindValue(":i", target_id);
     if (q.exec())
       return jsonResponse(QJsonObject{{"status", "ok"}});
-    return jsonResponse(QJsonObject(),
+    qDebug() << "Ban fail:" << q.lastError().text();
+    return jsonResponse(QJsonObject{{"error", q.lastError().text()}},
                         QHttpServerResponder::StatusCode::BadRequest);
   });
 
@@ -640,16 +642,6 @@ void setupRoutes(QHttpServer &server) {
                         QHttpServerResponder::StatusCode::BadRequest);
   });
 
-  server.route("/api/blog/posts", [](const QHttpServerRequest &request) {
-    if (request.method() == QHttpServerRequest::Method::Get)
-      return jsonResponse(QJsonArray());
-    return jsonResponse(QJsonObject{{"status", "ok"}});
-  });
-  server.route("/api/blog/comments", [](const QHttpServerRequest &request) {
-    if (request.method() == QHttpServerRequest::Method::Get)
-      return jsonResponse(QJsonArray());
-    return jsonResponse(QJsonObject{{"status", "ok"}});
-  });
 
   server.route("/api/compile_typst", [](const QHttpServerRequest &request) {
     if (request.method() != QHttpServerRequest::Method::Post)
