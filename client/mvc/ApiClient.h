@@ -31,6 +31,7 @@ public:
     void fetchContestTasks(const QString& token, int contestId);
     void submitAnswer(const QString& token, int taskId, const QString& answer);
     void fetchMySubmissions(const QString& token, int taskId);
+    void fetchMyHacks(const QString& token, int taskId);
     void fetchAllSubmissions(const QString& token, int taskId);
     void submitHack(const QString& token, int submissionId, const QString& hackText);
     void fetchProfile(const QString& token, int targetUserId = -1);
@@ -62,6 +63,7 @@ signals:
     void contestTasksLoaded(const QJsonArray& data);
     void submissionSuccessful();
     void mySubmissionsLoaded(const QJsonArray& data);
+    void myHacksLoaded(const QJsonArray& data);
     void allSubmissionsLoaded(const QJsonArray& data);
     void hackSuccessful(const QString& verdict, const QString& comment);
     void profileLoaded(const QJsonObject& data, int targetUserId);

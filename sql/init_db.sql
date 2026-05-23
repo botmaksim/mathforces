@@ -79,6 +79,7 @@ CREATE TABLE hacks (
     submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
     hack_text TEXT NOT NULL,
     status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'successful', 'unsuccessful'
+    feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -125,3 +126,4 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO mathforces;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO mathforces;
 
 ALTER TABLE contests ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;
+ALTER TABLE hacks ADD COLUMN IF NOT EXISTS feedback TEXT;

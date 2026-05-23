@@ -440,6 +440,23 @@ void ApiClient::fetchMySubmissions(const QString &token, int taskId) {
   });
 }
 
+void ApiClient::fetchMyHacks(const QString &token, int taskId) {
+  QNetworkRequest req(QUrl(
+      QString(ApiConfig::baseUrl + "/api/hacks/my?task_id=%1").arg(taskId)));
+  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+  if (!token.isEmpty())
+    req.setRawHeader("Authorization", token.toUtf8());
+  QNetworkReply *reply = m_manager->get(req);
+  connect(reply, &QNetworkReply::finished, [this, reply]() {
+    if (reply->error() == QNetworkReply::NoError) {
+      emit myHacksLoaded(
+          QJsonDocument::fromJson(reply->readAll()).array());
+    } else
+      emit errorOccurred(reply->errorString());
+    reply->deleteLater();
+  });
+}
+
 void ApiClient::fetchAllSubmissions(const QString &token, int taskId) {
   QNetworkRequest req(
       QUrl(QString(ApiConfig::baseUrl + "/api/submissions/all?task_id=%1")

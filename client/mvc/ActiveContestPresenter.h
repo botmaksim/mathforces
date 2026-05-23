@@ -12,6 +12,7 @@ public:
     void compileTypst(const QString& typstCode);
     void compileRealtime(const QString& typstCode);
     void loadMySubmissions(int taskId);
+    void loadMyHacks(int taskId);
     void loadAllSubmissions(int taskId);
     void submitHack(int submissionId, const QString& hackText);
     
@@ -22,6 +23,7 @@ signals:
     void tasksLoaded(const QJsonArray& data);
     void submissionSuccessful();
     void mySubmissionsLoaded(const QJsonArray& data);
+    void myHacksLoaded(const QJsonArray& data);
     void allSubmissionsLoaded(const QJsonArray& data);
     void hackSuccessful(const QString& verdict, const QString& comment);
     void typstCompiled(const QByteArray& pdfData);

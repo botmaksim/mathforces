@@ -31,6 +31,7 @@ private:
   QTextEdit *m_answer;
   QLabel *m_desc;
   QTableWidget *m_submissionsTable;
+  QTableWidget *m_hacksTable;
   QMap<int, QString> m_taskMap;
   QMap<int, QString> m_editorialMap;
   class QPushButton *m_btnShowEditorial;

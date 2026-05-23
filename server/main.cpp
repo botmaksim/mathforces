@@ -28,6 +28,9 @@ void loadEnv() {
       if (idx != -1) {
         QString key = line.left(idx).trimmed();
         QString val = line.mid(idx + 1).trimmed();
+        if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.mid(1, val.length() - 2);
+        }
         qputenv(key.toUtf8(), val.toUtf8());
       }
     }

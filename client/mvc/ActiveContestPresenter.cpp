@@ -8,6 +8,7 @@ ActiveContestPresenter::ActiveContestPresenter(const QString& token, QObject* pa
     connect(m_apiClient, &ApiClient::contestTasksLoaded, this, [this](const QJsonArray& d){ emit tasksLoaded(d); });
     connect(m_apiClient, &ApiClient::submissionSuccessful, this, [this](){ emit submissionSuccessful(); });
     connect(m_apiClient, &ApiClient::mySubmissionsLoaded, this, [this](const QJsonArray& d){ emit mySubmissionsLoaded(d); });
+    connect(m_apiClient, &ApiClient::myHacksLoaded, this, [this](const QJsonArray& d){ emit myHacksLoaded(d); });
     connect(m_apiClient, &ApiClient::allSubmissionsLoaded, this, [this](const QJsonArray& d){ emit allSubmissionsLoaded(d); });
     connect(m_apiClient, &ApiClient::hackSuccessful, this, [this](const QString& verdict, const QString& comment){ emit hackSuccessful(verdict, comment); });
     connect(m_apiClient, &ApiClient::typstCompiled, this, [this](const QByteArray& p){ emit typstCompiled(p); });
@@ -20,6 +21,7 @@ void ActiveContestPresenter::submitAnswer(int taskId, const QString& answer) { m
 void ActiveContestPresenter::compileTypst(const QString& typstCode) { m_apiClient->compileTypst(typstCode, false); }
 void ActiveContestPresenter::compileRealtime(const QString& typstCode) { m_apiClient->compileTypst(typstCode, true); }
 void ActiveContestPresenter::loadMySubmissions(int taskId) { m_apiClient->fetchMySubmissions(m_token, taskId); }
+void ActiveContestPresenter::loadMyHacks(int taskId) { m_apiClient->fetchMyHacks(m_token, taskId); }
 void ActiveContestPresenter::loadAllSubmissions(int taskId) { m_apiClient->fetchAllSubmissions(m_token, taskId); }
 void ActiveContestPresenter::submitHack(int submissionId, const QString& hackText) { m_apiClient->submitHack(m_token, submissionId, hackText); }
 

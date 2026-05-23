@@ -58,6 +58,8 @@ public:
         qEnvironmentVariable("SMTP_USER", "mathforcesmail@gmail.com").toUtf8();
     QByteArray pass =
         qEnvironmentVariable("SMTP_PASS", "jpmrlohckglxcbrc").toUtf8();
+    pass.replace("\"", "");
+    pass.replace(" ", "");
 
     if (!sendCommand(user.toBase64()))
       return deleteLater();
@@ -78,7 +80,7 @@ public:
     msg.append("MIME-Version: 1.0\r\n");
     msg.append("Content-Type: text/plain; charset=utf-8\r\n\r\n");
     msg.append(body.toUtf8() + "\r\n");
-    msg.append("\r\n.\r\n");
+    msg.append(".");
 
     if (!sendCommand(msg))
       return deleteLater();
