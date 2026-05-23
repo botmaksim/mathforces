@@ -49,6 +49,69 @@ jsonResponse(const QJsonArray &arr, QHttpServerResponder::StatusCode status =
   return QHttpServerResponse("application/json", doc, status);
 }
 
+static QJsonObject callGeminiJson(const QString& prompt, const QString& systemInstruction) {
+  QString apiKey = qEnvironmentVariable("GEMINI_API_KEY");
+  if (apiKey.isEmpty()) return QJsonObject{{"score", 0}, {"status", "unsuccessful"}, {"comment", "Error: No GEMINI_API_KEY"}};
+
+  QNetworkAccessManager manager;
+  QNetworkRequest req(QUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey));
+  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+  QJsonObject part; part["text"] = prompt;
+  QJsonArray parts; parts.append(part);
+  QJsonObject contentObj; contentObj["parts"] = parts;
+  QJsonArray contents; contents.append(contentObj);
+  
+  QJsonObject sysPart; sysPart["text"] = systemInstruction;
+  QJsonArray sysParts; sysParts.append(sysPart);
+  QJsonObject sysInstr; sysInstr["parts"] = sysParts;
+
+  QJsonObject genConf; genConf["responseMimeType"] = "application/json";
+
+  QJsonObject body; 
+  body["contents"] = contents;
+  body["systemInstruction"] = sysInstr;
+  body["generationConfig"] = genConf;
+
+  QNetworkReply *reply = manager.post(req, QJsonDocument(body).toJson());
+  QEventLoop loop;
+  QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+  loop.exec();
+
+  if (reply->error() != QNetworkReply::NoError) {
+     QString err = reply->errorString();
+     reply->deleteLater();
+     return QJsonObject{{"score", 0}, {"status", "unsuccessful"}, {"comment", "Network Error: " + err}};
+  }
+  QJsonObject resp = QJsonDocument::fromJson(reply->readAll()).object();
+  reply->deleteLater();
+
+  QJsonArray candidates = resp["candidates"].toArray();
+  if (candidates.isEmpty()) return QJsonObject{{"score", 0}, {"status", "unsuccessful"}, {"comment", "Error: empty candidates"}};
+  QString text = candidates[0].toObject()["content"].toObject()["parts"].toArray()[0].toObject()["text"].toString();
+  
+  QJsonObject result = QJsonDocument::fromJson(text.toUtf8()).object();
+  return result;
+}
+
+static QJsonObject evaluateSolution(const QString& desc, const QString& editorial, const QString& aiComment, int maxScore, const QString& answer) {
+  QString prompt = QString("Задача: %1\nАвторское решение: %2\nДоп. критерии: %3\nМаксимальный балл: %4\nРешение студента: %5\nОцени правильность решения студента.")
+      .arg(desc).arg(editorial).arg(aiComment).arg(maxScore).arg(answer);
+  QString sys = "Оцени решение. Верни ТОЛЬКО валидный JSON формата {\"score\": целое_число_баллов, \"comment\": \"короткий отзыв\"}. Учитывай макс. балл.";
+  QJsonObject res = callGeminiJson(prompt, sys);
+  if (!res.contains("score")) res["score"] = 0;
+  return res;
+}
+
+static QJsonObject evaluateHack(const QString& desc, const QString& editorial, const QString& origAnswer, const QString& hackText) {
+  QString prompt = QString("Задача: %1\nАвторский разбор: %2\nРешение, которое взламывают: %3\nТекст взлома/найденной ошибки: %4\nПроверь, действительно ли взлом указывает на ошибку в решении.")
+      .arg(desc).arg(editorial).arg(origAnswer).arg(hackText);
+  QString sys = "Ты - судья взломов. Верни ТОЛЬКО валидный JSON формата {\"status\": \"successful\" | \"unsuccessful\", \"comment\": \"пояснение\"}. successful - если взлом корректен и нашел ошибку.";
+  QJsonObject res = callGeminiJson(prompt, sys);
+  if (!res.contains("status")) res["status"] = "unsuccessful";
+  return res;
+}
+
 void setupRoutes(QHttpServer &server) {
 
   server.route("/ping", []() { return "pong"; });
@@ -327,16 +390,42 @@ void setupRoutes(QHttpServer &server) {
     int task_id = json["task_id"].toInt();
     QString answer = json["answer_text"].toString();
 
+    QSqlQuery qTask;
+    qTask.prepare("SELECT task_type, correct_answer, max_score, description, editorial, ai_comment FROM tasks WHERE id=:t");
+    qTask.bindValue(":t", task_id);
+    if (!qTask.exec() || !qTask.next()) {
+       return jsonResponse(QJsonObject{{"error", "Task not found"}}, QHttpServerResponder::StatusCode::NotFound);
+    }
+    QString type = qTask.value("task_type").toString();
+    int max_score = qTask.value("max_score").toInt();
+    int score = 0;
+    QString ai_eval = "";
+    QString status = "rejected";
+    if (type == "answer_only") {
+        if (answer.trimmed() == qTask.value("correct_answer").toString().trimmed()) {
+            score = max_score;
+            status = "accepted";
+        }
+    } else {
+        QJsonObject eval = evaluateSolution(qTask.value("description").toString(), qTask.value("editorial").toString(), qTask.value("ai_comment").toString(), max_score, answer);
+        score = eval["score"].toInt();
+        ai_eval = eval["comment"].toString();
+        status = (score == max_score) ? "accepted" : (score > 0 ? "partial" : "rejected");
+    }
+
     QSqlQuery q;
-    q.prepare("INSERT INTO submissions (task_id, user_id, answer_text) VALUES "
-              "(:t, :u, :a) RETURNING id");
+    q.prepare("INSERT INTO submissions (task_id, user_id, answer_text, score, status, feedback) VALUES "
+              "(:t, :u, :a, :s, :st, :f) RETURNING id");
     q.bindValue(":t", task_id);
     q.bindValue(":u", user_id);
     q.bindValue(":a", answer);
+    q.bindValue(":s", score);
+    q.bindValue(":st", status);
+    q.bindValue(":f", ai_eval);
 
     if (q.exec() && q.next()) {
       return jsonResponse(QJsonObject{
-          {"status", "ok"}, {"submission_id", q.value("id").toInt()}});
+          {"status", "ok"}, {"submission_id", q.value("id").toInt()}, {"score", score}, {"verdict", status}, {"ai_evaluation", ai_eval}});
     }
     return jsonResponse(QJsonObject{{"error", "Submission failed"}},
                         QHttpServerResponder::StatusCode::BadRequest);
@@ -858,7 +947,44 @@ void setupRoutes(QHttpServer &server) {
                         QHttpServerResponder::StatusCode::MethodNotAllowed);
   });
 
-  server.route("/api/results", dummyEmptyArray);
+  server.route("/api/results", [](const QHttpServerRequest &request) {
+    int contest_id = request.query().queryItemValue("contest_id").toInt();
+    if (contest_id <= 0) return jsonResponse(QJsonArray());
+
+    QSqlQuery q;
+    q.prepare("SELECT u.id AS user_id, u.username, "
+              "COALESCE(SUM(best.s), 0) AS total_score, "
+              "MAX(cp.is_official) AS official "
+              "FROM contest_participants cp "
+              "JOIN users u ON cp.user_id = u.id "
+              "LEFT JOIN ( "
+              "  SELECT user_id, task_id, MAX(score) as s "
+              "  FROM submissions s2 "
+              "  JOIN tasks t2 ON s2.task_id = t2.id "
+              "  WHERE t2.contest_id = :c "
+              "  GROUP BY user_id, task_id "
+              ") best ON best.user_id = cp.user_id "
+              "WHERE cp.contest_id = :c "
+              "GROUP BY u.id, u.username "
+              "ORDER BY total_score DESC");
+    q.bindValue(":c", contest_id);
+
+    QJsonArray arr;
+    int place = 1;
+    if (q.exec()) {
+      while (q.next()) {
+        QJsonObject obj;
+        obj["user_id"] = q.value("user_id").toInt();
+        obj["username"] = q.value("username").toString();
+        obj["total_score"] = q.value("total_score").toInt();
+        obj["penalty"] = 0;
+        obj["is_official"] = q.value("official").toBool();
+        obj["place"] = place++;
+        arr.append(obj);
+      }
+    }
+    return jsonResponse(arr);
+  });
 
   server.route("/api/contests/virtual", dummyOk);
   server.route("/api/users/search", [](const QHttpServerRequest &request) {
@@ -886,8 +1012,70 @@ void setupRoutes(QHttpServer &server) {
     }
     return jsonResponse(arr);
   });
-  server.route("/api/submissions/all", dummyEmptyArray);
-  server.route("/api/hacks", dummyOk);
+  server.route("/api/submissions/all", [](const QHttpServerRequest &request) {
+    QString token = QString::fromUtf8(request.value("Authorization"));
+    int user_id = 0;
+    QString role;
+    if (!VerifyJwt(token, user_id, role))
+      return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Unauthorized);
+
+    int task_id = request.query().queryItemValue("task_id").toInt();
+    QSqlQuery q;
+    q.prepare("SELECT s.id, u.username, s.score, s.answer_text "
+              "FROM submissions s JOIN users u ON s.user_id = u.id "
+              "WHERE s.task_id = :t "
+              "ORDER BY s.id DESC");
+    q.bindValue(":t", task_id);
+
+    QJsonArray arr;
+    if (q.exec()) {
+      while (q.next()) {
+        QJsonObject obj;
+        obj["id"] = q.value("id").toInt();
+        obj["username"] = q.value("username").toString();
+        obj["score"] = q.value("score").toInt();
+        obj["answer_text"] = q.value("answer_text").toString();
+        arr.append(obj);
+      }
+    }
+    return jsonResponse(arr);
+  });
+  server.route("/api/hacks", [](const QHttpServerRequest &request) {
+     if (request.method() != QHttpServerRequest::Method::Post)
+        return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::MethodNotAllowed);
+     QString token = QString::fromUtf8(request.value("Authorization"));
+     int user_id = 0; QString role;
+     if (!VerifyJwt(token, user_id, role)) return jsonResponse(QJsonObject(), QHttpServerResponder::StatusCode::Unauthorized);
+     
+     auto in = parseJson(request);
+     int sub_id = in["submission_id"].toInt();
+     QString hack_text = in["hack_text"].toString();
+
+     QSqlQuery qTask;
+     qTask.prepare("SELECT t.description, t.editorial, t.correct_answer, s.answer_text "
+                   "FROM submissions s JOIN tasks t ON s.task_id = t.id WHERE s.id=:s");
+     qTask.bindValue(":s", sub_id);
+     if (!qTask.exec() || !qTask.next()) {
+        return jsonResponse(QJsonObject{{"error","Submission not found"}}, QHttpServerResponder::StatusCode::NotFound);
+     }
+     
+     QString desc = qTask.value("description").toString();
+     QString editorial = qTask.value("editorial").toString();
+     QString orig_answer = qTask.value("answer_text").toString();
+
+     QJsonObject hackRes = evaluateHack(desc, editorial, orig_answer, hack_text);
+     QString verdict = hackRes["status"].toString();
+     
+     QSqlQuery qH;
+     qH.prepare("INSERT INTO hacks (hacker_id, submission_id, hack_text, status) VALUES (:h, :s, :t, :st)");
+     qH.bindValue(":h", user_id);
+     qH.bindValue(":s", sub_id);
+     qH.bindValue(":t", hack_text);
+     qH.bindValue(":st", verdict);
+     qH.exec();
+     
+     return jsonResponse(QJsonObject{{"status", "ok"}, {"verdict", verdict}, {"ai_comment", hackRes["comment"].toString()}});
+  });
 
   server.route("/api/oauth_callback_client", [](const QHttpServerRequest &) {
     QString html = R"(
