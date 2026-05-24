@@ -7,10 +7,14 @@ echo "======================================"
 
 # Устанавливаем зависимости системы
 sudo apt update
-sudo apt install -y build-essential cmake qt6-base-dev qt6-base-dev-tools qt6-httpserver-dev qt6-websockets-dev libqt6sql6-psql postgresql postgresql-client typst qt6-pdf-dev libxkbcommon-dev ccache ninja-build git tar unzip curl wget g++-12 libssl-dev libpq-dev
+sudo apt install -y build-essential cmake qt6-base-dev qt6-base-dev-tools qt6-httpserver-dev qt6-websockets-dev libqt6sql6-psql postgresql postgresql-client typst qt6-pdf-dev libxkbcommon-dev ccache ninja-build git tar unzip curl wget g++-12 libssl-dev libpq-dev libev-dev libjemalloc-dev libfmt-dev libboost-program-options-dev libboost-filesystem-dev libboost-locale-dev libboost-regex-dev libboost-iostreams-dev libyaml-cpp-dev zlib1g-dev python3-jinja2 python3-voluptuous libcurl4-openssl-dev libcctz-dev
 
 echo "======================================"
-echo "Очистка кэша от старой архитектуры (Userver -> Qt6)"
+echo "Сборка userver настроена через FetchContent"
+echo "======================================"
+
+echo "======================================"
+echo "Очистка кэша"
 echo "======================================"
 
 # Очищаем старые артефакты, в которых могут быть ссылки на тяжелый userver
@@ -19,9 +23,8 @@ if [ -d "build" ]; then
     rm -rf build
 fi
 
-# Удаляем файлы handlers.cpp/hpp, если они остались от старого проекта,
-# так как они вызывают ошибки компиляции и больше не нужны.
-rm -f server/handlers.cpp server/handlers.hpp 
+# Удаляем файлы routes.cpp/hpp, если они остались от старого проекта
+rm -f server/routes.cpp server/routes.hpp
 
 echo "======================================"
 echo "Конфигурация PostgreSQL"

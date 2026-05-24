@@ -17,7 +17,7 @@
 ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
                                    QWidget *parent)
     : QWidget(parent), m_token(token), m_role(role) {
-
+  
   m_presenter = new ActiveContestPresenter(m_token, this);
 
   QHBoxLayout *mainL = new QHBoxLayout(this);
@@ -31,28 +31,26 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   rightL->setContentsMargins(0, 0, 0, 0);
   rightL->setSpacing(12);
 
-  m_desc = new QLabel("Выберите задачу слева - здесь появится условие.", this);
+  m_desc = new QLabel("Select a task on the left - the description will appear here.", this);
   m_desc->setObjectName("infoCard");
   m_desc->setWordWrap(true);
 
-  QPushButton *btnPdfTask = new QPushButton("Открыть условие в PDF", this);
+  QPushButton *btnPdfTask = new QPushButton("Open description in PDF", this);
 
   m_answer = new QTextEdit(this);
-  m_answer->setPlaceholderText(
-      "Пишите решение здесь. Можно использовать LaTeX/Typst - предпросмотр "
-      "справа обновится автоматически.");
+  m_answer->setPlaceholderText("Write your solution here. You can use LaTeX/Typst - the preview on the right will update automatically.");
 
-  // Подключаем подсветку синтаксиса для поля ответа (LaTeX, Typst)
+  // Syntax highlighting for the answer field (LaTeX, Typst)
   new MathHighlighter(m_answer->document());
 
   QPushButton *btnPreviewAnswer =
-      new QPushButton("Предпросмотр ответа (PDF / Typst)", this);
-  QPushButton *btnSub = new QPushButton("Отправить решение", this);
+      new QPushButton("Preview answer (PDF / Typst)", this);
+  QPushButton *btnSub = new QPushButton("Submit solution", this);
 
-  m_btnShowEditorial = new QPushButton("Посмотреть разбор (Typst)", this);
+  m_btnShowEditorial = new QPushButton("View editorial (Typst)", this);
   m_btnShowEditorial->hide();
 
-  m_btnAllSubmissions = new QPushButton("Все решения и хаки", this);
+  m_btnAllSubmissions = new QPushButton("All submissions and hacks", this);
 
   connect(m_btnShowEditorial, &QPushButton::clicked, [this]() {
     if (!m_tasks->currentItem())
@@ -66,7 +64,7 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
 
   m_submissionsTable = new QTableWidget(0, 4, this);
   m_submissionsTable->setHorizontalHeaderLabels(
-      {"Оценка", "Обратная связь", "Ответ", "Статус"});
+      {"Score", "Feedback", "Answer", "Status"});
   m_submissionsTable->horizontalHeader()->setStretchLastSection(true);
   m_submissionsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_submissionsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -74,7 +72,7 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
 
   m_hacksTable = new QTableWidget(0, 5, this);
   m_hacksTable->setHorizontalHeaderLabels(
-      {"ID Взлома", "Вердикт ИИ", "Текст взлома", "Решение", "Обратная связь"});
+      {"Hack ID", "AI Verdict", "Hack text", "Solution", "Feedback"});
   m_hacksTable->horizontalHeader()->setStretchLastSection(true);
   m_hacksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_hacksTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -93,16 +91,16 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   connect(m_answer, &QTextEdit::textChanged, [this]() {
     m_compileTimer->start(1000); // 1s debounce
     if (m_tasks->currentItem() && !m_isLoadingDraft) {
-      int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
-      m_presenter->saveDraft(id, m_answer->toPlainText());
+        int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
+        m_presenter->saveDraft(id, m_answer->toPlainText());
     }
   });
   connect(m_compileTimer, &QTimer::timeout,
           [this]() { compileRealtime(m_answer->toPlainText()); });
 
   QHBoxLayout *subsHeaderL = new QHBoxLayout();
-  subsHeaderL->addWidget(new QLabel("Мои посылки по этой задаче:"));
-  QPushButton *btnRefreshSubs = new QPushButton("Обновить посылки", this);
+  subsHeaderL->addWidget(new QLabel("My submissions for this task:"));
+  QPushButton *btnRefreshSubs = new QPushButton("Refresh submissions", this);
   subsHeaderL->addWidget(btnRefreshSubs);
   subsHeaderL->addWidget(m_btnAllSubmissions);
   subsHeaderL->addStretch();
@@ -124,7 +122,7 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
   rightL->addLayout(actionsL);
   rightL->addLayout(subsHeaderL);
   rightL->addWidget(m_submissionsTable);
-  rightL->addWidget(new QLabel("Мои взломы по этой задаче:"));
+  rightL->addWidget(new QLabel("My hacks for this task:"));
   rightL->addWidget(m_hacksTable);
 
   mainL->addWidget(m_tasks, 1);
@@ -137,134 +135,112 @@ ActiveContestTab::ActiveContestTab(const QString &token, const QString &role,
       m_btnShowEditorial->show();
     else
       m_btnShowEditorial->hide();
-
+    
     m_isLoadingDraft = true;
     m_answer->setText(m_presenter->loadDraft(id));
     m_isLoadingDraft = false;
-
+    
     loadSubmissions(id);
   });
-
+  
   connect(btnRefreshSubs, &QPushButton::clicked, [this]() {
     if (m_tasks->currentItem()) {
       loadSubmissions(m_tasks->currentItem()->data(Qt::UserRole).toInt());
     }
   });
-
+  
   connect(btnPdfTask, &QPushButton::clicked, this,
           [this]() { compileAndShowPdf(m_desc->text()); });
   connect(btnPreviewAnswer, &QPushButton::clicked, this,
           [this]() { compileAndShowPdf(m_answer->toPlainText()); });
   connect(btnSub, &QPushButton::clicked, this, &ActiveContestTab::submit);
-
+  
   // Presenter hooks
-  connect(m_presenter, &ActiveContestPresenter::tasksLoaded, this,
-          [this](const QJsonArray &arr) {
-            for (auto v : arr) {
-              QJsonObject o = v.toObject();
-              int id = o["id"].toInt();
-              m_taskMap[id] = o["description"].toString();
-              if (o.contains("editorial"))
-                m_editorialMap[id] = o["editorial"].toString();
-              QListWidgetItem *item =
-                  new QListWidgetItem(o["title"].toString());
-              item->setData(Qt::UserRole, id);
-              m_tasks->addItem(item);
-            }
-          });
-
-  connect(m_presenter, &ActiveContestPresenter::submissionSuccessful, this,
-          [this]() {
-            QMessageBox::information(this, "Ок", "Отправлено на проверку ИИ!");
-            m_answer->clear();
-            if (m_tasks->currentItem()) {
-              int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
-              m_presenter->saveDraft(id, ""); // clear draft
-              loadSubmissions(id);
-            }
-          });
-
-  connect(m_presenter, &ActiveContestPresenter::mySubmissionsLoaded, this,
-          [this](const QJsonArray &arr) {
-            m_submissionsTable->setRowCount(arr.size());
-            bool hasSolved = false;
-            for (int i = 0; i < arr.size(); ++i) {
-              QJsonObject o = arr[i].toObject();
-              int score = o["score"].toInt();
-              m_submissionsTable->setItem(
-                  i, 0, new QTableWidgetItem(QString::number(score)));
-              m_submissionsTable->setItem(
-                  i, 1, new QTableWidgetItem(o["feedback"].toString()));
-              m_submissionsTable->setItem(
-                  i, 2, new QTableWidgetItem(o["answer_text"].toString()));
-              m_submissionsTable->setItem(
-                  i, 3, new QTableWidgetItem(o["status"].toString()));
-              if (score >= 100)
-                hasSolved = true;
-            }
-            if (m_role == "admin" || m_role == "superadmin")
-              hasSolved = true;
-            m_btnAllSubmissions->setEnabled(hasSolved);
-          });
-
-  connect(m_presenter, &ActiveContestPresenter::myHacksLoaded, this,
-          [this](const QJsonArray &arr) {
-            m_hacksTable->setRowCount(arr.size());
-            for (int i = 0; i < arr.size(); ++i) {
-              QJsonObject o = arr[i].toObject();
-              m_hacksTable->setItem(
-                  i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
-              m_hacksTable->setItem(
-                  i, 1, new QTableWidgetItem(o["status"].toString()));
-              m_hacksTable->setItem(
-                  i, 2, new QTableWidgetItem(o["hack_text"].toString()));
-              m_hacksTable->setItem(
-                  i, 3, new QTableWidgetItem(o["answer_text"].toString()));
-              m_hacksTable->setItem(
-                  i, 4, new QTableWidgetItem(o["feedback"].toString()));
-            }
-          });
-
-  // allSubmissionsLoaded is hooked locally inside showAllSubmissions to a
-  // temporary table
-
-  connect(m_presenter, &ActiveContestPresenter::errorOccurred, this,
-          [this](const QString &err) {
-            QMessageBox::warning(this, "Ошибка",
-                                 "Ошибка со стороны сервера: " + err);
-          });
-
-  connect(m_presenter, &ActiveContestPresenter::typstCompiled, this,
-          [this](const QByteArray &pdfData) {
-            QTemporaryFile *tempFile = new QTemporaryFile(this);
-            if (tempFile->open()) {
-              tempFile->write(pdfData);
-              tempFile->flush();
-              QDialog *pdfDialog = new QDialog(this);
-              pdfDialog->setWindowTitle("PDF Предпросмотр");
-              pdfDialog->resize(800, 600);
-              QVBoxLayout *layout = new QVBoxLayout(pdfDialog);
-              QPdfDocument *doc = new QPdfDocument(pdfDialog);
-              doc->load(tempFile->fileName());
-              QPdfView *view = new QPdfView(pdfDialog);
-              view->setDocument(doc);
-              view->setPageMode(QPdfView::PageMode::MultiPage);
-              layout->addWidget(view);
-              pdfDialog->exec();
-            }
-          });
-
-  connect(m_presenter, &ActiveContestPresenter::realtimeTypstCompiled, this,
-          [this](const QByteArray &pdfData) {
-            if (m_pdfTempFile)
-              m_pdfTempFile->deleteLater();
-            m_pdfTempFile = new QTemporaryFile(this);
-            if (m_pdfTempFile->open()) {
-              m_pdfTempFile->write(pdfData);
-              m_pdfTempFile->flush();
-              m_pdfDoc->load(m_pdfTempFile->fileName());
-            }
-          });
+  connect(m_presenter, &ActiveContestPresenter::tasksLoaded, this, [this](const QJsonArray& arr){
+      for (auto v : arr) {
+        QJsonObject o = v.toObject();
+        int id = o["id"].toInt();
+        m_taskMap[id] = o["description"].toString();
+        if (o.contains("editorial"))
+          m_editorialMap[id] = o["editorial"].toString();
+        QListWidgetItem *item = new QListWidgetItem(o["title"].toString());
+        item->setData(Qt::UserRole, id);
+        m_tasks->addItem(item);
+      }
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::submissionSuccessful, this, [this](){
+      QMessageBox::information(this, "Success", "Sent to AI for verification!");
+      m_answer->clear();
+      if (m_tasks->currentItem()) {
+          int id = m_tasks->currentItem()->data(Qt::UserRole).toInt();
+          m_presenter->saveDraft(id, ""); // clear draft
+          loadSubmissions(id);
+      }
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::mySubmissionsLoaded, this, [this](const QJsonArray& arr){
+      m_submissionsTable->setRowCount(arr.size());
+      bool hasSolved = false;
+      for (int i = 0; i < arr.size(); ++i) {
+        QJsonObject o = arr[i].toObject();
+        int score = o["score"].toInt();
+        m_submissionsTable->setItem(i, 0, new QTableWidgetItem(QString::number(score)));
+        m_submissionsTable->setItem(i, 1, new QTableWidgetItem(o["feedback"].toString()));
+        m_submissionsTable->setItem(i, 2, new QTableWidgetItem(o["answer_text"].toString()));
+        m_submissionsTable->setItem(i, 3, new QTableWidgetItem(o["status"].toString()));
+        if (score >= 100) hasSolved = true;
+      }
+      if (m_role == "admin" || m_role == "superadmin") hasSolved = true;
+      m_btnAllSubmissions->setEnabled(hasSolved);
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::myHacksLoaded, this, [this](const QJsonArray& arr){
+      m_hacksTable->setRowCount(arr.size());
+      for (int i = 0; i < arr.size(); ++i) {
+        QJsonObject o = arr[i].toObject();
+        m_hacksTable->setItem(i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
+        m_hacksTable->setItem(i, 1, new QTableWidgetItem(o["status"].toString()));
+        m_hacksTable->setItem(i, 2, new QTableWidgetItem(o["hack_text"].toString()));
+        m_hacksTable->setItem(i, 3, new QTableWidgetItem(o["answer_text"].toString()));
+        m_hacksTable->setItem(i, 4, new QTableWidgetItem(o["feedback"].toString()));
+      }
+  });
+  
+  // allSubmissionsLoaded is hooked locally inside showAllSubmissions to a temporary table
+  
+  connect(m_presenter, &ActiveContestPresenter::errorOccurred, this, [this](const QString& err){
+      QMessageBox::warning(this, "Error", "Server error: " + err);
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::typstCompiled, this, [this](const QByteArray& pdfData){
+      QTemporaryFile *tempFile = new QTemporaryFile(this);
+      if (tempFile->open()) {
+        tempFile->write(pdfData);
+        tempFile->flush();
+        QDialog *pdfDialog = new QDialog(this);
+        pdfDialog->setWindowTitle("PDF Preview");
+        pdfDialog->resize(800, 600);
+        QVBoxLayout *layout = new QVBoxLayout(pdfDialog);
+        QPdfDocument *doc = new QPdfDocument(pdfDialog);
+        doc->load(tempFile->fileName());
+        QPdfView *view = new QPdfView(pdfDialog);
+        view->setDocument(doc);
+        view->setPageMode(QPdfView::PageMode::MultiPage);
+        layout->addWidget(view);
+        pdfDialog->exec();
+      }
+  });
+  
+  connect(m_presenter, &ActiveContestPresenter::realtimeTypstCompiled, this, [this](const QByteArray& pdfData){
+      if (m_pdfTempFile) m_pdfTempFile->deleteLater();
+      m_pdfTempFile = new QTemporaryFile(this);
+      if (m_pdfTempFile->open()) {
+        m_pdfTempFile->write(pdfData);
+        m_pdfTempFile->flush();
+        m_pdfDoc->load(m_pdfTempFile->fileName());
+      }
+  });
 }
 
 void ActiveContestTab::compileRealtime(const QString &typstCode) {
@@ -276,8 +252,7 @@ void ActiveContestTab::compileRealtime(const QString &typstCode) {
 }
 
 void ActiveContestTab::compileAndShowPdf(const QString &typstCode) {
-  if (typstCode.isEmpty())
-    return;
+  if (typstCode.isEmpty()) return;
   m_presenter->compileTypst(typstCode);
 }
 
@@ -292,8 +267,7 @@ void ActiveContestTab::loadContest(int contestId, const QString &) {
 }
 
 void ActiveContestTab::submit() {
-  if (!m_tasks->currentItem() || m_answer->toPlainText().isEmpty())
-    return;
+  if (!m_tasks->currentItem() || m_answer->toPlainText().isEmpty()) return;
   int tId = m_tasks->currentItem()->data(Qt::UserRole).toInt();
   m_presenter->submitAnswer(tId, m_answer->toPlainText());
 }
@@ -304,37 +278,32 @@ void ActiveContestTab::showAllSubmissions() {
   int tId = m_tasks->currentItem()->data(Qt::UserRole).toInt();
 
   QDialog dlg(this);
-  dlg.setWindowTitle("Все посылки по задаче (Взломы)");
+  dlg.setWindowTitle("All submissions for task (Hacks)");
   dlg.resize(800, 600);
   QVBoxLayout *l = new QVBoxLayout(&dlg);
 
   QTableWidget *table = new QTableWidget(0, 4, &dlg);
   table->setHorizontalHeaderLabels(
-      {"ID Посылки", "Пользователь", "Оценка", "Ответ"});
+      {"Submission ID", "User", "Score", "Answer"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setEditTriggers(QAbstractItemView::NoEditTriggers);
   l->addWidget(table);
 
-  auto conn = connect(
-      m_presenter, &ActiveContestPresenter::allSubmissionsLoaded,
-      [&dlg, table](const QJsonArray &arr) {
-        table->setRowCount(arr.size());
-        for (int i = 0; i < arr.size(); ++i) {
-          QJsonObject o = arr[i].toObject();
-          table->setItem(
-              i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
-          table->setItem(i, 1, new QTableWidgetItem(o["username"].toString()));
-          table->setItem(
-              i, 2, new QTableWidgetItem(QString::number(o["score"].toInt())));
-          table->setItem(i, 3,
-                         new QTableWidgetItem(o["answer_text"].toString()));
-        }
-      });
+  auto conn = connect(m_presenter, &ActiveContestPresenter::allSubmissionsLoaded, [&dlg, table](const QJsonArray& arr){
+      table->setRowCount(arr.size());
+      for (int i = 0; i < arr.size(); ++i) {
+        QJsonObject o = arr[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
+        table->setItem(i, 1, new QTableWidgetItem(o["username"].toString()));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(o["score"].toInt())));
+        table->setItem(i, 3, new QTableWidgetItem(o["answer_text"].toString()));
+      }
+  });
 
   m_presenter->loadAllSubmissions(tId);
 
-  QPushButton *hackBtn = new QPushButton("Взломать выбранное", &dlg);
+  QPushButton *hackBtn = new QPushButton("Hack selected", &dlg);
   l->addWidget(hackBtn);
 
   connect(hackBtn, &QPushButton::clicked, [this, &dlg, table, tId]() {
@@ -344,30 +313,26 @@ void ActiveContestTab::showAllSubmissions() {
     int subId = table->item(row, 0)->text().toInt();
 
     QDialog hackDlg(&dlg);
-    hackDlg.setWindowTitle("Взлом решения");
+    hackDlg.setWindowTitle("Hack Submission");
     QVBoxLayout *hl = new QVBoxLayout(&hackDlg);
     QTextEdit *hackText = new QTextEdit(&hackDlg);
-    hackText->setPlaceholderText("Опишите ошибку или приведите контрпример...");
-    QPushButton *sendBtn = new QPushButton("Отправить взлом", &hackDlg);
+    hackText->setPlaceholderText("Describe the error or provide a counterexample...");
+    QPushButton *sendBtn = new QPushButton("Send hack", &hackDlg);
     hl->addWidget(hackText);
     hl->addWidget(sendBtn);
 
     auto hConn = std::make_shared<QMetaObject::Connection>();
-    *hConn =
-        connect(m_presenter, &ActiveContestPresenter::hackSuccessful,
-                [this, &hackDlg, hConn, tId](const QString &verdict,
-                                             const QString &comment) {
-                  QString msg = QString("Вердикт ИИ: %1\n\nКомментарий:\n%2")
-                                    .arg(verdict, comment);
-                  QMessageBox::information(&hackDlg, "Результат взлома", msg);
-                  QObject::disconnect(*hConn);
-                  m_presenter->loadAllSubmissions(tId);
-                  m_presenter->loadMyHacks(tId);
-                  hackDlg.accept();
-                });
+    *hConn = connect(m_presenter, &ActiveContestPresenter::hackSuccessful, [this, &hackDlg, hConn, tId](const QString& verdict, const QString& comment){
+        QString msg = QString("AI Verdict: %1\n\nFeedback:\n%2").arg(verdict, comment);
+        QMessageBox::information(&hackDlg, "Hack Result", msg);
+        QObject::disconnect(*hConn);
+        m_presenter->loadAllSubmissions(tId);
+        m_presenter->loadMyHacks(tId);
+        hackDlg.accept();
+    });
 
     connect(sendBtn, &QPushButton::clicked, [this, subId, hackText]() {
-      m_presenter->submitHack(subId, hackText->toPlainText());
+        m_presenter->submitHack(subId, hackText->toPlainText());
     });
     hackDlg.exec();
   });

@@ -26,7 +26,7 @@ void LocalDb::init() {
 void LocalDb::cacheContests(const QVariantList& contests) {
     QSqlDatabase db = QSqlDatabase::database("local_cache");
     QSqlQuery q(db);
-    q.exec("DELETE FROM cached_contests"); // Отчистить старый кэш
+    q.exec("DELETE FROM cached_contests"); // clear old cache
     q.prepare("INSERT INTO cached_contests (id, title, start_time) VALUES (:i, :t, :s)");
     
     for(const QVariant& v : contests) {

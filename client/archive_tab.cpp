@@ -10,15 +10,15 @@ ArchiveTab::ArchiveTab(const QString &token, QWidget *parent)
   QHBoxLayout *filterLayout = new QHBoxLayout();
   filterLayout->setSpacing(10);
   m_filterTags = new QLineEdit(this);
-  m_filterTags->setPlaceholderText("Теги (через запятую)...");
+  m_filterTags->setPlaceholderText("Tags (comma separated)...");
 
   m_filterMinDiff = new QLineEdit(this);
-  m_filterMinDiff->setPlaceholderText("Мин. сложность");
+  m_filterMinDiff->setPlaceholderText("Min difficulty");
 
   m_filterMaxDiff = new QLineEdit(this);
-  m_filterMaxDiff->setPlaceholderText("Макс. сложность");
+  m_filterMaxDiff->setPlaceholderText("Max difficulty");
 
-  m_btnFilter = new QPushButton("Найти задачи", this);
+  m_btnFilter = new QPushButton("Find tasks", this);
 
   filterLayout->addWidget(m_filterTags);
   filterLayout->addWidget(m_filterMinDiff);
@@ -55,7 +55,7 @@ void ArchiveTab::applyFilter() {
 }
 
 void ArchiveTab::openTask(int taskId) {
-  // В данном прототипе покажем ID задачи при двойном клике
-  QMessageBox::information(this, "Задача",
-                           "Открытие задачи ID: " + QString::number(taskId));
+  // In this prototype, we'll just show the task ID on double click
+  QMessageBox::information(this, "Task",
+                           "Opening task ID: " + QString::number(taskId));
 }

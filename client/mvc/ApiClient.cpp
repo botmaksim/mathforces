@@ -131,7 +131,7 @@ void ApiClient::login(const QString &email, const QString &password) {
       QJsonObject o = QJsonDocument::fromJson(reply->readAll()).object();
       emit loginSuccessful(o["token"].toString(), o["role"].toString());
     } else
-      emit errorOccurred("Логин не удался");
+      emit errorOccurred("Login failed");
     reply->deleteLater();
   });
 }
@@ -147,7 +147,7 @@ void ApiClient::requestCode(const QString &email) {
       emit codeRequested();
     } else
       emit errorOccurred(
-          "Ошибка при запросе кода (возможно email занят / не существует)");
+          "Error requesting code (email might be taken)");
     reply->deleteLater();
   });
 }
@@ -172,7 +172,7 @@ void ApiClient::registerUser(const QString &code, const QString &email,
       QJsonObject o = QJsonDocument::fromJson(reply->readAll()).object();
       QString s =
           o.contains("error") ? o["error"].toString() : reply->errorString();
-      emit errorOccurred("Регистрация не удалась: " + s);
+      emit errorOccurred("Registration failed: " + s);
     }
     reply->deleteLater();
   });

@@ -22,18 +22,18 @@
 
 static QString readableRole(const QString &role) {
   if (role == "superadmin")
-    return "Суперадмин";
+    return "Superadmin";
   if (role == "admin")
-    return "Администратор";
+    return "Administrator";
   if (role == "moderator")
-    return "Модератор";
-  return "Участник";
+    return "Moderator";
+  return "Participant";
 }
 
 MainWindow::MainWindow(const QString &token, const QString &role,
                        QWidget *parent)
     : QMainWindow(parent), m_token(token), m_role(role) {
-  setWindowTitle("MathForces - математические контесты");
+  setWindowTitle("MathForces - Mathematical Contests");
   setMinimumSize(1100, 720);
 
   QWidget *root = new QWidget(this);
@@ -59,14 +59,14 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   QLabel *title = new QLabel("MathForces", topBar);
   title->setObjectName("appTitle");
   QLabel *subtitle = new QLabel(
-      "Тёплая платформа для математических контестов, решений и рейтингов",
+      "Warm platform for mathematical contests, solutions, and rankings",
       topBar);
   subtitle->setObjectName("appSubtitle");
   titleLayout->addWidget(title);
   titleLayout->addWidget(subtitle);
   topLayout->addLayout(titleLayout, 1);
 
-  QLabel *roleBadge = new QLabel("Роль: " + readableRole(role), topBar);
+  QLabel *roleBadge = new QLabel("Role: " + readableRole(role), topBar);
   roleBadge->setObjectName("roleBadge");
   topLayout->addWidget(roleBadge, 0, Qt::AlignVCenter);
 
@@ -87,21 +87,21 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   m_ratingsTab = new RatingsTab(token, role, this);
   m_archiveTab = new ArchiveTab(token, this);
 
-  m_tabs->addTab(m_contestsTab, "Контесты");
-  m_tabs->addTab(m_activeTab, "Текущий контест");
-  m_tabs->addTab(m_resultsTab, "Результаты");
-  m_tabs->addTab(m_friendsTab, "Сообщество");
-  m_tabs->addTab(m_ratingsTab, "Рейтинг");
-  m_tabs->addTab(m_archiveTab, "Архив задач");
+  m_tabs->addTab(m_contestsTab, "Contests");
+  m_tabs->addTab(m_activeTab, "Active Contest");
+  m_tabs->addTab(m_resultsTab, "Results");
+  m_tabs->addTab(m_friendsTab, "Community");
+  m_tabs->addTab(m_ratingsTab, "Rating");
+  m_tabs->addTab(m_archiveTab, "Archive");
 
   if (role == "admin" || role == "superadmin") {
     m_adminTab = new AdminTab(token, this);
-    m_tabs->addTab(m_adminTab, "Управление");
+    m_tabs->addTab(m_adminTab, "Management");
   }
 
   if (role == "superadmin" || role == "moderator") {
     m_usersTab = new UsersTab(token, role, this);
-    m_tabs->addTab(m_usersTab, "Пользователи");
+    m_tabs->addTab(m_usersTab, "Users");
   }
 
   connect(m_contestsTab, &ContestsTab::contestSelected, this,
@@ -109,7 +109,7 @@ MainWindow::MainWindow(const QString &token, const QString &role,
   connect(
       m_contestsTab, &ContestsTab::virtualReadyToOpen, this,
       [this](int cid) {
-          openContest(cid, "Виртуальное участие");
+          openContest(cid, "Virtual participation");
       });
 }
 

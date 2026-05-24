@@ -13,11 +13,11 @@ ResultsTab::ResultsTab(const QString &token, const QString &myRole,
   QVBoxLayout *l = new QVBoxLayout(this);
   l->setContentsMargins(4, 4, 4, 4);
   l->setSpacing(14);
-  QLabel *title = new QLabel("Таблица результатов", this);
+  QLabel *title = new QLabel("Results Table", this);
   title->setObjectName("sectionTitle");
-  QLabel *hint = new QLabel("Дважды нажмите на участника, чтобы открыть профиль.", this);
+  QLabel *hint = new QLabel("Double click a participant to open their profile.", this);
   hint->setObjectName("mutedLabel");
-  QPushButton *btn = new QPushButton("Обновить результаты", this);
+  QPushButton *btn = new QPushButton("Refresh Results", this);
   
   m_tableView = new QTableView(this);
   m_model = new ResultsModel(this);
@@ -35,7 +35,7 @@ ResultsTab::ResultsTab(const QString &token, const QString &myRole,
 
   QHBoxLayout *adminL = new QHBoxLayout();
   QPushButton *btnRate =
-      new QPushButton("Пересчитать Эло", this);
+      new QPushButton("Recalculate Elo", this);
   adminL->addWidget(btnRate);
   adminL->addStretch();
   if (m_myRole == "admin" || m_myRole == "superadmin") {
@@ -59,7 +59,7 @@ ResultsTab::ResultsTab(const QString &token, const QString &myRole,
           });
           
   connect(m_presenter, &ResultsPresenter::errorOccurred, this, [this](const QString& err){
-      QMessageBox::warning(this, "Ошибка", err);
+      QMessageBox::warning(this, "Error", err);
   });
 
   m_timer = new QTimer(this);

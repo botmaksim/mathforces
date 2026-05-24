@@ -13,7 +13,7 @@ QVariant UsersListModel::data(const QModelIndex& index, int role) const {
     QVariantMap map = m_users.at(index.row()).toMap();
     
     if (role == Qt::DisplayRole) {
-        return QString("%1 (%2) - Эло: %3")
+        return QString("%1 (%2) - Elo: %3")
                 .arg(map["username"].toString())
                 .arg(map["name"].toString())
                 .arg(map["rating"].toInt());

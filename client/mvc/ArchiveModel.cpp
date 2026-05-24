@@ -32,9 +32,9 @@ QVariant ArchiveModel::headerData(int section, Qt::Orientation orientation, int 
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         switch (section) {
             case 0: return "ID";
-            case 1: return "Название";
-            case 2: return "Теги";
-            case 3: return "Сложность";
+            case 1: return "Title";
+            case 2: return "Tags";
+            case 3: return "Difficulty";
         }
     }
     return QVariant();

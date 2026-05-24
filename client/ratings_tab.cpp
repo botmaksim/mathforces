@@ -13,12 +13,12 @@ RatingsTab::RatingsTab(const QString &token, const QString &myRole,
   QVBoxLayout *l = new QVBoxLayout(this);
   l->setContentsMargins(4, 4, 4, 4);
   l->setSpacing(14);
-  QLabel *title = new QLabel("Глобальный рейтинг", this);
+  QLabel *title = new QLabel("Global Rating", this);
   title->setObjectName("sectionTitle");
-  QLabel *hint = new QLabel("Рейтинг обновляется автоматически. Двойной клик открывает профиль участника.", this);
+  QLabel *hint = new QLabel("The rating is updated automatically. Double click to open a participant's profile.", this);
   hint->setObjectName("mutedLabel");
   hint->setWordWrap(true);
-  QPushButton *btn = new QPushButton("Обновить рейтинг", this);
+  QPushButton *btn = new QPushButton("Refresh Rating", this);
   
   m_tableView = new QTableView(this);
   m_model = new RatingModel(this);

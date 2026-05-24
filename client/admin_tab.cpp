@@ -24,10 +24,10 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
 
   QHBoxLayout *topL = new QHBoxLayout();
   topL->setSpacing(10);
-  topL->addWidget(new QLabel("Текущий контест:"));
+  topL->addWidget(new QLabel("Current contest:"));
   m_selectContest = new QComboBox();
   topL->addWidget(m_selectContest);
-  m_btnCreateDraft = new QPushButton("Создать черновик");
+  m_btnCreateDraft = new QPushButton("Create Draft");
   topL->addWidget(m_btnCreateDraft);
   mainVert->addLayout(topL);
 
@@ -35,10 +35,10 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   ML->setSpacing(14);
   mainVert->addLayout(ML);
 
-  QGroupBox *g1 = new QGroupBox("Параметры контеста");
+  QGroupBox *g1 = new QGroupBox("Contest Parameters");
   QVBoxLayout *l1 = new QVBoxLayout(g1);
   m_cTitle = new QLineEdit();
-  m_cTitle->setPlaceholderText("Название");
+  m_cTitle->setPlaceholderText("Title");
 
   m_cStart = new QDateTimeEdit(QDateTime::currentDateTime());
   m_cStart->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
@@ -46,77 +46,77 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   m_cDuration = new QDoubleSpinBox();
   m_cDuration->setRange(0.1, 720.0);
   m_cDuration->setValue(2.0);
-  m_cDuration->setSuffix(" ч.");
+  m_cDuration->setSuffix(" hr.");
   m_cDuration->setSingleStep(0.5);
 
   m_cDesc = new QTextEdit();
-  m_cDesc->setPlaceholderText("Описание...");
+  m_cDesc->setPlaceholderText("Description...");
   new MathHighlighter(m_cDesc->document());
 
-  m_cIsPublished = new QCheckBox("Опубликовать контест (сразу доступен)");
+  m_cIsPublished = new QCheckBox("Publish contest (available immediately)");
 
-  QPushButton *b1 = new QPushButton("Сохранить контест");
-  l1->addWidget(new QLabel("Название:"));
+  QPushButton *b1 = new QPushButton("Save contest");
+  l1->addWidget(new QLabel("Title:"));
   l1->addWidget(m_cTitle);
-  l1->addWidget(new QLabel("Начало:"));
+  l1->addWidget(new QLabel("Start:"));
   l1->addWidget(m_cStart);
-  l1->addWidget(new QLabel("Продолжительность:"));
+  l1->addWidget(new QLabel("Duration:"));
   l1->addWidget(m_cDuration);
-  l1->addWidget(new QLabel("Описание:"));
+  l1->addWidget(new QLabel("Description:"));
   l1->addWidget(m_cDesc);
   l1->addWidget(m_cIsPublished);
   l1->addWidget(b1);
 
-  QGroupBox *g2 = new QGroupBox("Новая задача");
+  QGroupBox *g2 = new QGroupBox("New Task");
   QVBoxLayout *l2 = new QVBoxLayout(g2);
   m_tTitle = new QLineEdit();
-  m_tTitle->setPlaceholderText("Название");
+  m_tTitle->setPlaceholderText("Title");
   m_tScore = new QLineEdit();
-  m_tScore->setPlaceholderText("Макс Балл (100)");
+  m_tScore->setPlaceholderText("Max Score (100)");
   m_tMaxSubmissions = new QLineEdit();
-  m_tMaxSubmissions->setPlaceholderText("Макс посылок (напр. 10)");
+  m_tMaxSubmissions->setPlaceholderText("Max submissions (e.g. 10)");
 
   m_tType = new QComboBox();
-  m_tType->addItem("Только ответ", "answer_only");
-  m_tType->addItem("Решение", "solution");
+  m_tType->addItem("Answer only", "answer_only");
+  m_tType->addItem("Solution", "solution");
 
   m_tDesc = new QTextEdit();
-  m_tDesc->setPlaceholderText("Условие задачи (LaTeX/Typst)...");
+  m_tDesc->setPlaceholderText("Task description (LaTeX/Typst)...");
   new MathHighlighter(m_tDesc->document());
 
   m_tCorrectAnswer = new QLineEdit();
-  m_tCorrectAnswer->setPlaceholderText("Правильный ответ (для answer_only)");
+  m_tCorrectAnswer->setPlaceholderText("Correct answer (for answer_only)");
 
   m_tEditorial = new QTextEdit();
-  m_tEditorial->setPlaceholderText("Решение (разбор) задачи...");
-  m_tSendEditorialToAi = new QCheckBox("Отправлять решение ИИ для проверки?");
+  m_tEditorial->setPlaceholderText("Task solution (editorial)...");
+  m_tSendEditorialToAi = new QCheckBox("Send solution to AI for check?");
 
   m_tAiComment = new QTextEdit();
   m_tAiComment->setPlaceholderText(
-      "Комментарий для нейросети (подсказки, критерии проверки)...");
+      "Comment for neural network (hints, grading criteria)...");
   m_tAiComment->setMaximumHeight(60);
 
   m_tTags = new QLineEdit();
-  m_tTags->setPlaceholderText("Теги (через запятую)...");
+  m_tTags->setPlaceholderText("Tags (comma separated)...");
   m_tDifficulty = new QLineEdit();
-  m_tDifficulty->setPlaceholderText("Сложность (например 1200)");
+  m_tDifficulty->setPlaceholderText("Difficulty (e.g., 1200)");
 
   QPushButton *btnPreviewEditorial =
-      new QPushButton("Предпросмотр разбора (Typst)", this);
+      new QPushButton("Preview editorial (Typst)", this);
 
-  QPushButton *b2 = new QPushButton("Добавить задачу");
+  QPushButton *b2 = new QPushButton("Add Task");
 
   l2->addWidget(m_tTitle);
   l2->addWidget(m_tScore);
   l2->addWidget(m_tMaxSubmissions);
-  l2->addWidget(new QLabel("Тип:"));
+  l2->addWidget(new QLabel("Type:"));
   l2->addWidget(m_tType);
   l2->addWidget(m_tTags);
   l2->addWidget(m_tDifficulty);
-  l2->addWidget(new QLabel("Условие:"));
+  l2->addWidget(new QLabel("Description:"));
   l2->addWidget(m_tDesc);
   l2->addWidget(m_tCorrectAnswer);
-  l2->addWidget(new QLabel("Авторское решение:"));
+  l2->addWidget(new QLabel("Editorial:"));
   l2->addWidget(m_tEditorial);
   l2->addWidget(btnPreviewEditorial);
   l2->addWidget(m_tSendEditorialToAi);
@@ -148,7 +148,7 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
     }
   });
 
-  QGroupBox *g3 = new QGroupBox("Живой предпросмотр Typst");
+  QGroupBox *g3 = new QGroupBox("Live Typst Preview");
   QVBoxLayout *l3 = new QVBoxLayout(g3);
   l3->addWidget(m_pdfView);
 
@@ -166,21 +166,21 @@ AdminTab::AdminTab(const QString &token, QWidget *parent)
   });
   
   connect(m_presenter, &AdminPresenter::draftCreated, this, [this](){
-      QMessageBox::information(this, "Ок", "Черновик контеста создан");
+      QMessageBox::information(this, "Success", "Contest draft created");
       loadMyContests();
   });
   
   connect(m_presenter, &AdminPresenter::contestUpdated, this, [this](){
-      QMessageBox::information(this, "Ок", "Параметры сохранены");
+      QMessageBox::information(this, "Success", "Parameters saved");
       loadMyContests();
   });
   
   connect(m_presenter, &AdminPresenter::taskCreated, this, [this](){
-      QMessageBox::information(this, "Ок", "Задача создана!");
+      QMessageBox::information(this, "Success", "Task created!");
   });
   
   connect(m_presenter, &AdminPresenter::errorOccurred, this, [this](const QString& err){
-      QMessageBox::warning(this, "Ошибка", "Ошибка: " + err);
+      QMessageBox::warning(this, "Error", "Error: " + err);
   });
   
   connect(m_presenter, &AdminPresenter::typstCompiled, this, [this](const QByteArray& pdfData){

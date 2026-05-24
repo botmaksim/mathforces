@@ -16,16 +16,16 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   // Left side: Search
   QVBoxLayout *leftLayout = new QVBoxLayout();
   leftLayout->setSpacing(12);
-  QLabel *searchTitle = new QLabel("Найти участника", this);
+  QLabel *searchTitle = new QLabel("Find Participant", this);
   searchTitle->setObjectName("sectionTitle");
-  QLabel *searchHint = new QLabel("Ищите по имени или username, затем добавляйте в друзья.", this);
+  QLabel *searchHint = new QLabel("Search by name or username, then add to friends.", this);
   searchHint->setObjectName("mutedLabel");
   searchHint->setWordWrap(true);
   QHBoxLayout *searchLayout = new QHBoxLayout();
   searchLayout->setSpacing(10);
   m_searchEdit = new QLineEdit();
-  m_searchEdit->setPlaceholderText("Имя или Username");
-  m_btnSearch = new QPushButton("Искать");
+  m_searchEdit->setPlaceholderText("Name or Username");
+  m_btnSearch = new QPushButton("Search");
   searchLayout->addWidget(m_searchEdit);
   searchLayout->addWidget(m_btnSearch);
 
@@ -34,7 +34,7 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   m_searchResults->setModel(m_searchModel);
   m_searchResults->setEditTriggers(QAbstractItemView::NoEditTriggers);
   
-  m_btnAddFriend = new QPushButton("Добавить в друзья");
+  m_btnAddFriend = new QPushButton("Add to friends");
 
   leftLayout->addWidget(searchTitle);
   leftLayout->addWidget(searchHint);
@@ -45,7 +45,7 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   // Right side: Friends
   QVBoxLayout *rightLayout = new QVBoxLayout();
   rightLayout->setSpacing(12);
-  QLabel *friendsTitle = new QLabel("Мои друзья", this);
+  QLabel *friendsTitle = new QLabel("My Friends", this);
   friendsTitle->setObjectName("sectionTitle");
   
   m_friendsList = new QListView();
@@ -53,8 +53,8 @@ FriendsTab::FriendsTab(const QString &token, const QString &myRole,
   m_friendsList->setModel(m_friendsModel);
   m_friendsList->setEditTriggers(QAbstractItemView::NoEditTriggers);
   
-  m_btnRemoveFriend = new QPushButton("Удалить из друзей");
-  QPushButton *btnRefresh = new QPushButton("Обновить друзей");
+  m_btnRemoveFriend = new QPushButton("Remove from friends");
+  QPushButton *btnRefresh = new QPushButton("Refresh Friends");
 
   rightLayout->addWidget(friendsTitle);
   rightLayout->addWidget(btnRefresh, 0, Qt::AlignLeft);

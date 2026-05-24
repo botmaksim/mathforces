@@ -25,8 +25,8 @@ QVariant UsersTableModel::data(const QModelIndex& index, int role) const {
             case 3: return map["name"];
             case 4: return map["rating"];
             case 5: return map["role"];
-            case 6: return map["is_banned"].toBool() ? "Да" : "Нет";
-            case 7: return map["can_blog"].toBool() ? "Да" : "Нет";
+            case 6: return map["is_banned"].toBool() ? "Yes" : "No";
+            case 7: return map["can_blog"].toBool() ? "Yes" : "No";
         }
     } else if (role == Qt::UserRole) {
         return map;
@@ -40,11 +40,11 @@ QVariant UsersTableModel::headerData(int section, Qt::Orientation orientation, i
             case 0: return "ID";
             case 1: return "Email";
             case 2: return "Username";
-            case 3: return "Имя";
-            case 4: return "Эло";
-            case 5: return "Роль";
-            case 6: return "Бан";
-            case 7: return "Блог";
+            case 3: return "Name";
+            case 4: return "Elo";
+            case 5: return "Role";
+            case 6: return "Banned";
+            case 7: return "Blog";
         }
     }
     return QVariant();

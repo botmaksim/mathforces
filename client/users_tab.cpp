@@ -17,12 +17,12 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
   l->setContentsMargins(4, 4, 4, 4);
   l->setSpacing(14);
 
-  QLabel *title = new QLabel("Управление пользователями", this);
+  QLabel *title = new QLabel("User Management", this);
   title->setObjectName("sectionTitle");
-  QLabel *hint = new QLabel("Двойной клик открывает профиль. ПКМ (Правый клик) для управления ролями и банами.", this);
+  QLabel *hint = new QLabel("Double click opens the profile. Right click to manage roles and bans.", this);
   hint->setObjectName("mutedLabel");
   hint->setWordWrap(true);
-  QPushButton *btnRefresh = new QPushButton("Обновить пользователей", this);
+  QPushButton *btnRefresh = new QPushButton("Refresh Users", this);
   l->addWidget(title);
   l->addWidget(hint);
   l->addWidget(btnRefresh, 0, Qt::AlignLeft);
@@ -38,9 +38,9 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
   l->addWidget(m_tableView);
 
   QHBoxLayout *actionLayout = new QHBoxLayout;
-  m_btnRoleEdit = new QPushButton("Изменить роль");
-  m_btnBanToggle = new QPushButton("Забанить / Разбанить");
-  m_btnBlogToggle = new QPushButton("Право на блог");
+  m_btnRoleEdit = new QPushButton("Edit Role");
+  m_btnBanToggle = new QPushButton("Ban / Unban");
+  m_btnBlogToggle = new QPushButton("Blog Permission");
   actionLayout->addWidget(m_btnRoleEdit);
   actionLayout->addWidget(m_btnBanToggle);
   actionLayout->addWidget(m_btnBlogToggle);
@@ -81,8 +81,8 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
 
       if (hasSelection) {
           int row = m_tableView->selectionModel()->selectedRows().first().row();
-          m_btnBanToggle->setText(m_model->isUserBanned(row) ? "Разбанить" : "Забанить");
-          m_btnBlogToggle->setText(m_model->canUserBlog(row) ? "Забрать право на блог" : "Дать право на блог");
+          m_btnBanToggle->setText(m_model->isUserBanned(row) ? "Unban" : "Ban");
+          m_btnBlogToggle->setText(m_model->canUserBlog(row) ? "Revoke blog right" : "Give blog right");
       }
   });
   
@@ -103,7 +103,7 @@ UsersTab::UsersTab(const QString &token, const QString &myRole, QWidget *parent)
   });
 
   connect(m_presenter, &UsersPresenter::errorOccurred, this, [this](const QString& err){
-      QMessageBox::warning(this, "Ошибка", err);
+      QMessageBox::warning(this, "Error", err);
   });
 
   loadUsers();
@@ -116,7 +116,7 @@ void UsersTab::loadUsers() {
 void UsersTab::applyRoleChange(int row) {
     bool ok;
     QStringList roles = {"student", "admin", "moderator", "superadmin"};
-    QString res = QInputDialog::getItem(this, "Роль", "Выберите новую роль:", roles, roles.indexOf(m_model->getUserRole(row)), false, &ok);
+    QString res = QInputDialog::getItem(this, "Role", "Select new role:", roles, roles.indexOf(m_model->getUserRole(row)), false, &ok);
     if (ok && !res.isEmpty()) {
         m_presenter->changeRole(m_model->getUserId(row), res);
     }

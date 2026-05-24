@@ -11,7 +11,7 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
                              const QString &myRole, QWidget *parent)
     : QDialog(parent), m_token(token), m_targetUserId(targetUserId),
       m_myRole(myRole), m_isSelf(false), m_canBlog(false), m_myUserId(-1) {
-  setWindowTitle("Профиль пользователя");
+  setWindowTitle("User Profile");
   resize(720, 820);
 
   m_presenter = new ProfilePresenter(m_token, this);
@@ -20,7 +20,7 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   L->setContentsMargins(22, 22, 22, 22);
   L->setSpacing(12);
 
-  m_lblUsername = new QLabel("Загрузка...", this);
+  m_lblUsername = new QLabel("Loading...", this);
   m_lblUsername->setObjectName("sectionTitle");
   m_lblName = new QLabel(this);
   m_lblRating = new QLabel(this);
@@ -31,16 +31,16 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   L->addWidget(m_lblRating);
   L->addWidget(m_lblEmail);
 
-  QLabel *blogTitle = new QLabel("Блог", this);
+  QLabel *blogTitle = new QLabel("Blog", this);
   blogTitle->setObjectName("sectionTitle");
   L->addWidget(blogTitle);
 
   m_txtNewPost = new QTextEdit(this);
-  m_txtNewPost->setPlaceholderText("О чем вы думаете?");
+  m_txtNewPost->setPlaceholderText("What are you thinking about?");
   m_txtNewPost->setMaximumHeight(80);
   m_txtNewPost->hide();
 
-  m_btnPost = new QPushButton("Отправить в блог", this);
+  m_btnPost = new QPushButton("Post to blog", this);
   m_btnPost->hide();
   connect(m_btnPost, &QPushButton::clicked, this, &ProfileDialog::addBlogPost);
 
@@ -67,7 +67,7 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   connect(m_presenter, &ProfilePresenter::profileLoaded, this, [this](const QJsonObject& o){
       m_lblUsername->setText(o["username"].toString());
       m_lblName->setText(o["name"].toString());
-      m_lblRating->setText("Эло (Рейтинг): " + QString::number(o["rating"].toInt()));
+      m_lblRating->setText("Elo (Rating): " + QString::number(o["rating"].toInt()));
 
       if (o.contains("email")) {
         m_lblEmail->setText("Email: " + o["email"].toString());
@@ -104,7 +104,7 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
         dateLbl->setObjectName("mutedLabel");
         QLabel *cLbl = new QLabel(o["content"].toString());
         cLbl->setWordWrap(true);
-        QPushButton *bComment = new QPushButton("Комментарии");
+        QPushButton *bComment = new QPushButton("Comments");
         int pid = o["id"].toInt();
         connect(bComment, &QPushButton::clicked, [this, pid]() { showComments(pid); });
         l->addWidget(dateLbl);
@@ -121,7 +121,7 @@ ProfileDialog::ProfileDialog(const QString &token, int targetUserId,
   });
   
   connect(m_presenter, &ProfilePresenter::errorOccurred, this, [this](const QString& err){
-      QMessageBox::warning(this, "Ошибка", err);
+      QMessageBox::warning(this, "Error", err);
   });
 
   fetchMyId();
@@ -149,7 +149,7 @@ void ProfileDialog::addBlogPost() {
 
 void ProfileDialog::showComments(int postId) {
   QDialog d(this);
-  d.setWindowTitle("Комментарии");
+  d.setWindowTitle("Comments");
   d.resize(400, 500);
   QVBoxLayout *l = new QVBoxLayout(&d);
 
@@ -162,7 +162,7 @@ void ProfileDialog::showComments(int postId) {
 
   QTextEdit *te = new QTextEdit(&d);
   te->setMaximumHeight(60);
-  QPushButton *b = new QPushButton("Отправить", &d);
+  QPushButton *b = new QPushButton("Send", &d);
   l->addWidget(te);
   l->addWidget(b);
 

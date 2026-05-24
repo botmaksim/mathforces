@@ -21,7 +21,7 @@ QVariant ResultsModel::data(const QModelIndex& index, int role) const {
             case 1: return map["username"];
             case 2: return map["total_score"];
             case 3: return map["penalty"];
-            case 4: return map["is_official"].toBool() ? "Да" : "Нет";
+            case 4: return map["is_official"].toBool() ? "Yes" : "No";
         }
     }
     return QVariant();
@@ -30,11 +30,11 @@ QVariant ResultsModel::data(const QModelIndex& index, int role) const {
 QVariant ResultsModel::headerData(int section, Qt::Orientation orientation, int role) const {
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         switch (section) {
-            case 0: return "Место";
-            case 1: return "Участник";
-            case 2: return "Баллы";
-            case 3: return "Штраф (мин)";
-            case 4: return "Официальный";
+            case 0: return "Rank";
+            case 1: return "Participant";
+            case 2: return "Score";
+            case 3: return "Penalty (min)";
+            case 4: return "Official";
         }
     }
     return QVariant();

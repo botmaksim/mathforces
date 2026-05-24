@@ -31,10 +31,10 @@ QVariant RatingModel::data(const QModelIndex& index, int role) const {
 QVariant RatingModel::headerData(int section, Qt::Orientation orientation, int role) const {
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         switch (section) {
-            case 0: return "Место";
-            case 1: return "Пользователь";
-            case 2: return "Имя";
-            case 3: return "Рейтинг";
+            case 0: return "Rank";
+            case 1: return "User";
+            case 2: return "Name";
+            case 3: return "Rating";
         }
     }
     return QVariant();
