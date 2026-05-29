@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS friends CASCADE;
 DROP TABLE IF EXISTS hacks CASCADE;
 DROP TABLE IF EXISTS virtual_participations CASCADE;
 DROP TABLE IF EXISTS comments CASCADE;
@@ -51,20 +50,6 @@ CREATE TABLE tasks (
     difficulty INTEGER DEFAULT 1000
 );
 
-CREATE TABLE submissions (
-    id SERIAL PRIMARY KEY,
-    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    answer_text TEXT NOT NULL,
-    score INTEGER DEFAULT 0,
-    feedback TEXT,
-    thinking TEXT,
-    ai_probability FLOAT,
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'graded'
-    is_upsolving BOOLEAN DEFAULT FALSE,
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE virtual_participations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -79,7 +64,6 @@ CREATE TABLE hacks (
     submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
     hack_text TEXT NOT NULL,
     status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'successful', 'unsuccessful'
-    feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -89,6 +73,20 @@ CREATE TABLE contest_participants (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     is_official BOOLEAN DEFAULT TRUE,
     UNIQUE(contest_id, user_id)
+);
+
+CREATE TABLE submissions (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    answer_text TEXT NOT NULL,
+    score INTEGER DEFAULT 0,
+    feedback TEXT,
+    thinking TEXT,
+    ai_probability FLOAT,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'graded'
+    is_upsolving BOOLEAN DEFAULT FALSE,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE blogs (
@@ -107,23 +105,13 @@ CREATE TABLE comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE friends (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    friend_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, friend_id)
-);
-
-
 -- Тестовые данные
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('superadmin', 'superadmin@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'superadmin', 'Super Admin');
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('admin', 'admin@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'admin', 'Admin');
-INSERT INTO users (username, email, password_hash, role, name) VALUES ('student', 'student@example.com', '7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea', 'student', 'Student');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('superadmin', 'superadmin@example.com', '12345', 'superadmin', 'Super Admin');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('admin', 'admin@example.com', '12345', 'admin', 'Admin');
+INSERT INTO users (username, email, password_hash, role, name) VALUES ('student', 'student@example.com', '12345', 'student', 'Student');
 
 -- Выдаем права пользователю mathforces
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO mathforces;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO mathforces;
 
 ALTER TABLE contests ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;
-ALTER TABLE hacks ADD COLUMN IF NOT EXISTS feedback TEXT;
